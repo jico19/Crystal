@@ -1,0 +1,14 @@
+{
+  "node": {
+    "3548e16c8ccfc7b81350e2b6e835b062cbfaf234": {
+      "workers": {
+        "app/(public)/[state]/contact/page": "(action-browser)/./node_modules/next/dist/build/webpack/loaders/next-flight-action-entry-loader.js?actions=%5B%5B%22C%3A%5C%5CUsers%5C%5Cuser%5C%5CDocuments%5C%5CCrystal%5C%5Csrc%5C%5Cactions%5C%5Cinquiry.ts%22%2C%5B%22submitPublicInquiry%22%5D%5D%5D&__client_imported__=true!"
+      },
+      "layer": {
+        "app/(public)/[state]/contact/page": "action-browser"
+      }
+    }
+  },
+  "edge": {},
+  "encryptionKey": "c/Ozl3uwYIIIiZuoCnwUQVAKRNChG499yRDpCt2bvMw="
+}
