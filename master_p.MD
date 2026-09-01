@@ -13,6 +13,7 @@ This specification must be so detailed that an autonomous coding agent or junior
 2. **PostgreSQL Database Schema (DDL):**
    - Exact SQL table definitions, constraints, primary/foreign keys (`org_id` references), and indexes.
    - Exact PostgreSQL Row-Level Security (RLS) policies for each role (`caregiver`, `client`, `agency_staff`, `state_admin`, `super_admin`).
+   - Store and maintain versioned schema snapshots in `db_schema/db_schema_<date>_v<version>.sql` (create `db_schema/` if not present).
 3. **TypeScript & Validation Schemas:**
    - Complete Zod schemas for client/server validation with specific error messages (placed in `@crystal/validation` or module definitions).
    - Complete TypeScript interfaces & DTOs (placed in `@crystal/types`).

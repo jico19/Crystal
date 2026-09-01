@@ -54,6 +54,8 @@ crystal/
 │   ├── validation/              # Shared Zod validation schemas
 │   └── config/                  # Shared ESLint, TS, and Tailwind configurations
 │
+├── db_schema/                   # Versioned SQL schema snapshots (db_schema_<date>_v<version>.sql)
+│
 ├── infrastructure/
 │   ├── docker/                  # Docker Compose & container configurations
 │   ├── caddy/                   # Caddy reverse proxy & TLS config

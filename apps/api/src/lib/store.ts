@@ -1,0 +1,47 @@
+import type { PublicInquiry } from '@crystal/types';
+
+// In-memory persistent store for local development simulation
+export const mockInquiries: PublicInquiry[] = [
+  {
+    id: 'inq-001',
+    org_id: '00000000-0000-0000-0000-000000000001',
+    state_code: 'GA',
+    full_name: 'Eleanor Vance',
+    email: 'eleanor.vance@example.com',
+    phone: '(404) 555-8833',
+    inquiry_type: 'client_care_inquiry',
+    message: 'Looking for 20 hours/week personal attendant care for my mother in Buckhead, Atlanta.',
+    source_url: 'https://withopenhands.com/contact',
+    status: 'new',
+    created_at: new Date(Date.now() - 3600000 * 2).toISOString(),
+    updated_at: new Date(Date.now() - 3600000 * 2).toISOString(),
+  },
+  {
+    id: 'inq-002',
+    org_id: '00000000-0000-0000-0000-000000000002',
+    state_code: 'IN',
+    full_name: 'Marcus Brody',
+    email: 'm.brody@example.com',
+    phone: '(317) 555-4921',
+    inquiry_type: 'caregiver_inquiry',
+    message: 'Certified CNA with 5 years in-home care experience applying for weekend attendant shifts in Indianapolis.',
+    source_url: 'https://cherishopenarms.com/contact',
+    status: 'contacted',
+    created_at: new Date(Date.now() - 3600000 * 5).toISOString(),
+    updated_at: new Date(Date.now() - 3600000 * 1).toISOString(),
+  },
+  {
+    id: 'inq-003',
+    org_id: '00000000-0000-0000-0000-000000000001',
+    state_code: 'GA',
+    full_name: 'David Sterling',
+    email: 'david.s@example.com',
+    phone: '(770) 555-2244',
+    inquiry_type: 'general_question',
+    message: 'Do you accept Georgia Medicaid CCSP waiver for specialized respite care?',
+    source_url: 'https://withopenhands.com/services',
+    status: 'new',
+    created_at: new Date(Date.now() - 3600000 * 12).toISOString(),
+    updated_at: new Date(Date.now() - 3600000 * 12).toISOString(),
+  },
+];

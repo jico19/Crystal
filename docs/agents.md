@@ -132,7 +132,7 @@ graph TD
 
 ## 3. Mandatory Architectural Rules & Guardrails for AI & Developers
 
-When implementing, refactoring, or generating code for the Crystal platform, all developers and AI coding agents must adhere strictly to these 9 core rules:
+When implementing, refactoring, or generating code for the Crystal platform, all developers and AI coding agents must adhere strictly to these 10 core rules:
 
 ```mermaid
 graph TD
@@ -145,6 +145,7 @@ graph TD
     Rule7["7. Configuration-Driven State Variations"]
     Rule8["8. Ephemeral Signed Access for Sensitive Documents"]
     Rule9["9. Preserve Established Tech Stack & Simplicity"]
+    Rule10["10. Mandatory Schema Versioning in db_schema/"]
 ```
 
 ### Rule 1: Multi-State Frontends + Unified API
@@ -182,6 +183,15 @@ graph TD
 ### Rule 9: Preserve Tech Stack & Architectural Simplicity
 - Avoid unnecessary message brokers (Kafka/RabbitMQ), additional backend frameworks, or multi-database topologies.
 - Standard stack: **Next.js 14+ App Router**, **Tailwind CSS + shadcn/ui**, **Node.js/TypeScript (Unified API)**, **PostgreSQL 15+ with RLS**, **Supabase Storage / AWS S3**, **Amazon SES**, **Twilio**.
+
+### Rule 10: Mandatory Database Schema Versioning (`db_schema/`)
+- **Every time there are changes to the database schema (DDL, tables, columns, indexes, RLS policies, or migrations), the agent must store the full updated schema in the `db_schema` folder (create the folder if it does not exist).**
+- File naming convention:
+  ```text
+  db_schema/db_schema_<date>_v<version>.sql
+  ```
+  *(e.g., `db_schema/db_schema_20260901_v1.sql`, `db_schema/db_schema_20260901_v2.sql`, `db_schema/db_schema_20260902_v1.sql`)*
+- Never perform database modifications without creating or updating the versioned snapshot in `db_schema/`. Each file must contain self-contained, reproducible SQL definitions including table structures, foreign keys, constraints, and Row-Level Security policies.
 
 ---
 

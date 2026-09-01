@@ -1,0 +1,26 @@
+{
+  "name": "crystal-monorepo",
+  "version": "1.0.0",
+  "private": true,
+  "packageManager": "npm@11.13.0",
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "dev": "turbo run dev",
+    "dev:ga": "npm run dev --workspace=@crystal/georgia",
+    "dev:in": "npm run dev --workspace=@crystal/indiana",
+    "dev:api": "npm run dev --workspace=@crystal/api",
+    "build": "turbo run build",
+    "test": "vitest run",
+    "lint": "turbo run lint"
+  },
+  "devDependencies": {
+    "@next/swc-wasm-nodejs": "14.2.5",
+    "@next/swc-win32-x64-msvc": "14.2.5",
+    "turbo": "^2.0.14",
+    "typescript": "^5.5.4",
+    "vitest": "^2.0.5"
+  }
+}

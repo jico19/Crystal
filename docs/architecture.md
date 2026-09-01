@@ -442,6 +442,8 @@ crystal/
 │   ├── validation/              # Shared Zod validation schemas
 │   └── config/                  # Shared TypeScript, ESLint, and Tailwind configurations
 │
+├── db_schema/                   # Versioned SQL schema snapshots (db_schema_<date>_v<version>.sql)
+│
 ├── infrastructure/
 │   ├── docker/                  # Dockerfiles & Docker Compose configurations
 │   ├── caddy/                   # Caddy reverse proxy & TLS config
