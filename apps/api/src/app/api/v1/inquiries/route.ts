@@ -1,86 +1,94 @@
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { CreatePublicInquirySchema } from '@crystal/validation';
-import { mockInquiries } from '@/lib/store';
+import { listPublicInquiriesDb, savePublicInquiryDb } from '@/lib/db';
 import type { PublicInquiry } from '@crystal/types';
 
-// GET /api/v1/inquiries (Supports optional ?state_code=GA or ?state_code=IN)
-export async function GET(request: Request) {
+export const dynamic = 'force-dynamic';
+
+/**
+ * GET /api/v1/inquiries
+ * Retrieves all inquiries from PostgreSQL, optionally filtered by org_id or state_code.
+ */
+export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
-  const stateCode = searchParams.get('state_code');
+  const orgId = searchParams.get('org_id') || undefined;
+  const stateCode = searchParams.get('state_code') || undefined;
 
-  let results = [...mockInquiries];
-  if (stateCode) {
-    results = results.filter((item) => item.state_code.toUpperCase() === stateCode.toUpperCase());
-  }
-
-  // Sort descending by created_at
-  results.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
-
+  const results = await listPublicInquiriesDb(orgId, stateCode);
   return NextResponse.json({
     success: true,
-    total: results.length,
     data: results,
+    count: results.length,
   });
 }
 
-// POST /api/v1/inquiries (Submit new public lead)
-export async function POST(request: Request) {
+/**
+ * POST /api/v1/inquiries
+ * Submits a public inquiry/lead and persists to PostgreSQL.
+ */
+export async function POST(request: NextRequest) {
+  let body: unknown;
   try {
-    const rawBody = await request.json();
-
-    // Server-side Zod validation
-    const validation = CreatePublicInquirySchema.safeParse(rawBody);
-    if (!validation.success) {
-      return NextResponse.json(
-        {
-          success: false,
-          error: 'Validation failed',
-          fieldErrors: validation.error.flatten().fieldErrors,
-        },
-        { status: 400 }
-      );
-    }
-
-    const { honeypot, ...payload } = validation.data;
-
-    // Silent drop for automated spam bots
-    if (honeypot && honeypot.length > 0) {
-      return NextResponse.json({ success: true, data: { inquiryId: 'noop' } });
-    }
-
-    const newInquiry: PublicInquiry = {
-      id: `inq-${Date.now()}`,
-      org_id: payload.org_id,
-      state_code: payload.state_code,
-      full_name: payload.full_name,
-      email: payload.email,
-      phone: payload.phone,
-      inquiry_type: payload.inquiry_type,
-      message: payload.message,
-      source_url: payload.source_url,
-      ip_address: request.headers.get('x-forwarded-for')?.split(',')[0] || '127.0.0.1',
-      status: 'new',
-      created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString(),
-    };
-
-    mockInquiries.unshift(newInquiry);
-
+    body = await request.json();
+  } catch {
     return NextResponse.json(
-      {
-        success: true,
-        message: 'Inquiry received and queued for state care coordinators.',
-        data: { inquiryId: newInquiry.id },
-      },
-      { status: 201 }
+      { success: false, error: 'Invalid JSON payload' },
+      { status: 400 }
     );
-  } catch (error: any) {
+  }
+
+  const validationResult = CreatePublicInquirySchema.safeParse(body);
+  if (!validationResult.success) {
+    const formattedErrors: Record<string, string[]> = {};
+    validationResult.error.errors.forEach((err) => {
+      const field = err.path.join('.') || 'root';
+      if (!formattedErrors[field]) formattedErrors[field] = [];
+      formattedErrors[field].push(err.message);
+    });
+
     return NextResponse.json(
       {
         success: false,
-        error: error.message || 'Internal server error processing inquiry.',
+        error: 'Validation failed',
+        fieldErrors: formattedErrors,
       },
-      { status: 500 }
+      { status: 422 }
     );
   }
+
+  const data = validationResult.data;
+
+  // Honeypot spam check
+  if (data.honeypot && data.honeypot.trim() !== '') {
+    return NextResponse.json({ success: true, inquiry_id: 'noop' }, { status: 200 });
+  }
+
+  const clientIp = request.headers.get('x-forwarded-for')?.split(',')[0].trim() || '127.0.0.1';
+
+  const newInquiry: PublicInquiry = {
+    id: `inq-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+    org_id: data.org_id,
+    state_code: data.state_code,
+    full_name: data.full_name,
+    email: data.email,
+    phone: data.phone,
+    inquiry_type: data.inquiry_type,
+    message: data.message,
+    source_url: data.source_url,
+    ip_address: clientIp,
+    status: 'new',
+    created_at: new Date().toISOString(),
+    updated_at: new Date().toISOString(),
+  };
+
+  await savePublicInquiryDb(newInquiry);
+
+  return NextResponse.json(
+    {
+      success: true,
+      inquiry_id: newInquiry.id,
+      message: 'Inquiry received successfully.',
+    },
+    { status: 201 }
+  );
 }

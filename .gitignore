@@ -61,3 +61,9 @@ Thumbs.db
 # Supabase Local Temp Data
 .supabase/
 supabase/.temp/
+
+# Local PGlite Database Files
+.pglite-data/
+*.pglite-data/
+apps/*/.pglite-data/
+

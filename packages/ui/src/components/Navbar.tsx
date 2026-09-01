@@ -78,9 +78,9 @@ export function Navbar({ organization }: NavbarProps) {
                 Request Care
               </Button>
             </a>
-            <a href="/contact?type=caregiver_inquiry">
+            <a href="/apply">
               <Button variant="outline" size="md">
-                Careers / Apply
+                Join Our Team
               </Button>
             </a>
           </div>
@@ -136,9 +136,9 @@ export function Navbar({ organization }: NavbarProps) {
                 Request Care
               </Button>
             </a>
-            <a href="/contact?type=caregiver_inquiry" onClick={() => setMobileMenuOpen(false)}>
+            <a href="/apply" onClick={() => setMobileMenuOpen(false)}>
               <Button variant="outline" className="w-full">
-                Careers / Apply
+                Join Our Team
               </Button>
             </a>
           </div>

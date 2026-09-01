@@ -7,3 +7,25 @@ export * from './components/Badge';
 export * from './components/Navbar';
 export * from './components/Footer';
 export * from './components/ContactForm';
+export { StepIndicator } from './components/StepIndicator';
+export type { StepIndicatorProps } from './components/StepIndicator';
+export { SSNInput } from './components/SSNInput';
+export type { SSNInputProps } from './components/SSNInput';
+export { RepeaterField } from './components/RepeaterField';
+export type { RepeaterFieldProps } from './components/RepeaterField';
+export { OnboardingTracker } from './components/OnboardingTracker';
+export type { OnboardingTrackerProps } from './components/OnboardingTracker';
+export { CaregiverApplyWizard } from './components/CaregiverApplyWizard';
+export type { CaregiverApplyWizardProps } from './components/CaregiverApplyWizard';
+export { SignatureCanvasPad } from './components/SignatureCanvasPad';
+export type { SignatureCanvasPadProps } from './components/SignatureCanvasPad';
+export { CertificateOfCompletionBadge } from './components/CertificateOfCompletionBadge';
+export type { CertificateOfCompletionBadgeProps } from './components/CertificateOfCompletionBadge';
+export { ComplianceScoreBanner } from './components/ComplianceScoreBanner';
+export type { ComplianceScoreBannerProps } from './components/ComplianceScoreBanner';
+export { DocumentUploadModal } from './components/DocumentUploadModal';
+export type { DocumentUploadModalProps } from './components/DocumentUploadModal';
+export { DocumentChecklistTable } from './components/DocumentChecklistTable';
+export type { DocumentChecklistTableProps } from './components/DocumentChecklistTable';
+
+

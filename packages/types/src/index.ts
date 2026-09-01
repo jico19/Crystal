@@ -82,3 +82,294 @@ export interface UserProfile {
   mfa_enabled: boolean;
   created_at: string;
 }
+
+// ============================================================
+// Caregiver Application & Onboarding Types (Feature Spec 02)
+// ============================================================
+
+export type CaregiverStatusType =
+  | 'draft'
+  | 'submitted'
+  | 'under_review'
+  | 'additional_info_requested'
+  | 'approved'
+  | 'rejected'
+  | 'archived';
+
+export type OnboardingStepStatusType =
+  | 'not_started'
+  | 'in_progress'
+  | 'submitted'
+  | 'verified'
+  | 'rejected';
+
+export type CaregiverPositionType = 'cna' | 'hha' | 'companion' | 'pca' | 'rn' | 'lpn';
+
+export type LicenseType = 'CNA' | 'HHA' | 'LPN' | 'RN' | 'CPR' | 'PCA';
+
+export type ShiftType = 'mornings' | 'afternoons' | 'evenings' | 'overnights' | 'live_in';
+
+export type DayOfWeek = 'mon' | 'tue' | 'wed' | 'thu' | 'fri' | 'sat' | 'sun';
+
+export interface CaregiverAddress {
+  street: string;
+  unit?: string;
+  city: string;
+  state: string;
+  zip: string;
+}
+
+export interface CaregiverPersonalInfo {
+  first_name: string;
+  middle_name?: string;
+  last_name: string;
+  email: string;
+  phone: string;
+  dob: string; // YYYY-MM-DD
+  ssn_last4?: string; // Display only — last 4 digits
+  ssn_encrypted?: string; // Encrypted blob — never returned to client
+  address: CaregiverAddress;
+}
+
+export interface CaregiverAvailability {
+  full_time: boolean;
+  part_time: boolean;
+  prn: boolean;
+  days_available: DayOfWeek[];
+  shifts_available: ShiftType[];
+  max_weekly_hours: number;
+  willing_to_travel_miles: number;
+}
+
+export interface WorkExperienceItem {
+  employer_name: string;
+  job_title: string;
+  start_date: string; // YYYY-MM-DD
+  end_date?: string; // YYYY-MM-DD or undefined if current
+  reason_for_leaving?: string;
+  supervisor_contact?: string;
+}
+
+export interface ReferenceItem {
+  name: string;
+  relationship: 'professional' | 'personal' | 'supervisor';
+  phone: string;
+  email?: string;
+  years_known: number;
+}
+
+export interface ProfessionalLicenseItem {
+  license_type: LicenseType;
+  license_number: string;
+  issuing_state: string;
+  expiration_date: string; // YYYY-MM-DD
+}
+
+export interface LegalDisclosures {
+  authorized_to_work_in_us: true;
+  felony_conviction: boolean;
+  felony_explanation?: string;
+  drug_screen_consent: true;
+  background_check_consent: true;
+  attestation_signature: string;
+  attestation_timestamp: string; // ISO datetime
+  signature_base64?: string;
+}
+
+export interface OnboardingChecklist {
+  application_form: OnboardingStepStatusType;
+  id_documents: OnboardingStepStatusType;
+  background_check: OnboardingStepStatusType;
+  tb_physical: OnboardingStepStatusType;
+  in_service_orientation: OnboardingStepStatusType;
+  direct_deposit_w4: OnboardingStepStatusType;
+  final_admin_approval: OnboardingStepStatusType;
+}
+
+export interface CaregiverProfile {
+  id: string;
+  user_id: string;
+  org_id: string;
+  state_code: StateCode;
+  application_status: CaregiverStatusType;
+  application_step: number; // 1–5
+  personal_info: CaregiverPersonalInfo;
+  positions_applied: CaregiverPositionType[];
+  availability: CaregiverAvailability;
+  experience_history: WorkExperienceItem[];
+  professional_licenses: ProfessionalLicenseItem[];
+  references: ReferenceItem[];
+  legal_disclosures: Partial<LegalDisclosures>;
+  onboarding_checklist: OnboardingChecklist;
+  assigned_coordinator_id?: string;
+  rejection_reason?: string;
+  submitted_at?: string;
+  approved_at?: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface SaveCaregiverDraftPayload {
+  step: 1 | 2 | 3 | 4 | 5;
+  org_id: string;
+  state_code: StateCode;
+  data: Record<string, unknown>;
+}
+
+export interface CaregiverDraftResponse {
+  success: boolean;
+  profile?: Partial<CaregiverProfile>;
+  error?: string;
+}
+
+export interface CaregiverSubmitResponse {
+  success: boolean;
+  application_id?: string;
+  error?: string;
+}
+
+// ============================================================
+// E-Signature & Agreement Types (Feature Spec 09)
+// ============================================================
+
+export type EsignEnvelopeStatus =
+  | 'draft'
+  | 'sent'
+  | 'partially_signed'
+  | 'completed'
+  | 'declined'
+  | 'voided';
+
+export type SignerRole = 'caregiver' | 'client_rep' | 'agency_director';
+
+export interface SignatureEnvelope {
+  id: string;
+  org_id: string;
+  title: string;
+  template_type: 'caregiver_onboarding_packet' | 'client_service_agreement';
+  status: EsignEnvelopeStatus;
+  signer_role: SignerRole;
+  signer_user_id?: string;
+  signer_name: string;
+  signer_email: string;
+  signature_base64?: string;
+  signed_document_hash?: string; // SHA-256 cryptographic stamp
+  ip_address?: string;
+  user_agent?: string;
+  signed_at?: string;
+  expires_at: string;
+  created_at: string;
+  updated_at: string;
+}
+
+// ============================================================
+// Caregiver Documents & Credential Tracking (Feature Spec 03)
+// ============================================================
+
+export type DocumentCategoryType =
+  | 'drivers_license'
+  | 'social_security_card'
+  | 'cpr_first_aid'
+  | 'cna_hha_license'
+  | 'tb_test_screen'
+  | 'physical_exam'
+  | 'background_check_report'
+  | 'auto_insurance'
+  | 'direct_deposit_form'
+  | 'w4_i9_form'
+  | 'other_compliance_doc';
+
+export type DocVerificationStatusType =
+  | 'pending_upload'
+  | 'under_review'
+  | 'approved'
+  | 'rejected'
+  | 'expired';
+
+export interface OcrExtractedData {
+  license_number?: string;
+  issuer?: string;
+  issue_date?: string;
+  expiration_date?: string;
+  confidence_score: number; // 0.0 - 1.0
+  detected_category?: DocumentCategoryType;
+  raw_text_snippet?: string;
+}
+
+export interface CaregiverDocument {
+  id: string;
+  caregiver_id: string;
+  org_id: string;
+  category: DocumentCategoryType;
+  file_storage_path: string;
+  file_name: string;
+  file_size_bytes: number;
+  mime_type: string;
+  issue_date?: string;
+  expiration_date?: string;
+  has_no_expiration: boolean;
+  verification_status: DocVerificationStatusType;
+  verified_by?: string;
+  verified_at?: string;
+  rejection_reason?: string;
+  ocr_extracted_data?: OcrExtractedData;
+  is_archived: boolean;
+  created_at: string;
+  updated_at: string;
+  days_until_expiration?: number;
+  is_expiring_soon?: boolean;
+}
+
+export type DocumentAuditActionType =
+  | 'UPLOAD'
+  | 'VIEW_PREVIEW'
+  | 'DOWNLOAD'
+  | 'APPROVE'
+  | 'REJECT'
+  | 'EXPIRE';
+
+export interface DocumentAuditLog {
+  id: string;
+  document_id: string;
+  user_id: string;
+  action: DocumentAuditActionType;
+  ip_address?: string;
+  user_agent?: string;
+  created_at: string;
+}
+
+export interface ComplianceScore {
+  caregiver_id: string;
+  score_percentage: number;
+  total_required: number;
+  approved_count: number;
+  under_review_count: number;
+  rejected_count: number;
+  expired_count: number;
+  missing_count: number;
+  expiring_soon_count: number; // <= 30 days
+  missing_categories: DocumentCategoryType[];
+  expiring_documents: CaregiverDocument[];
+}
+
+export interface DocumentUploadPayload {
+  caregiver_id: string;
+  category: DocumentCategoryType;
+  file_name: string;
+  file_size_bytes: number;
+  mime_type: string;
+  file_base64?: string;
+  issue_date?: string;
+  expiration_date?: string;
+  has_no_expiration?: boolean;
+}
+
+export interface DocumentReviewPayload {
+  document_id: string;
+  decision: 'approved' | 'rejected';
+  rejection_reason?: string;
+  corrected_expiration_date?: string;
+}
+
+
+

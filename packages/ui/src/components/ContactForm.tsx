@@ -70,8 +70,16 @@ export function ContactForm({ organization, initialInquiryType, onSubmitInquiry 
           return;
         }
       } else {
-        // Fallback demo/mock submission
-        await new Promise((resolve) => setTimeout(resolve, 600));
+        const apiBaseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000';
+        const res = await fetch(`${apiBaseUrl}/api/v1/inquiries`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload),
+        });
+        if (!res.ok) {
+          const body = await res.json().catch(() => ({}));
+          throw new Error(body?.error || `Submission failed (HTTP ${res.status})`);
+        }
       }
 
       setStatus('success');

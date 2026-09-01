@@ -17,6 +17,7 @@
     "lint": "turbo run lint"
   },
   "devDependencies": {
+    "@electric-sql/pglite": "^0.5.8",
     "@next/swc-wasm-nodejs": "14.2.5",
     "@next/swc-win32-x64-msvc": "14.2.5",
     "turbo": "^2.0.14",
