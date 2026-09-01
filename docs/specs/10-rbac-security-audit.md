@@ -164,7 +164,7 @@ src/app/(admin)/settings/
 
 | Failure Scenario | Root Cause | System Response & Mitigation |
 | :--- | :--- | :--- |
-| **Token Tampering / Role Injection** | Malicious client alters JWT payload | Supabase PostgREST verifies cryptographic signature against secret; invalid JWT rejected at API layer. |
+| **Token Tampering / Role Injection** | Malicious client alters JWT payload | Unified Crystal API authentication middleware verifies cryptographic signature against secret; invalid JWT rejected at API layer. |
 | **Cross-State Record Access** | Staff queries URL with out-of-state ID | PostgreSQL Row-Level Security evaluates `org_id` and returns 0 rows (404 Not Found), preventing data exposure. |
 
 ---
@@ -176,7 +176,7 @@ Feature: RBAC & Security Boundaries
 
   Scenario: Caregiver attempts accessing client medical records
     Given a logged in user with role "caregiver"
-    When the user sends a GET request to "/api/clients"
+    When the user sends a GET request to "/api/v1/clients"
     Then the system returns HTTP status 403 Forbidden
     And a "SECURITY_VIOLATION" entry is recorded in the audit log
 

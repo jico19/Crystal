@@ -1,251 +1,463 @@
 # Technical Architecture Specification
 
-## 1. System Overview & High-Level Architecture
+## 1. System Overview & Core Architecture
 
-The platform uses a modern, unified multi-tenant architecture designed to host both state operations (**Georgia — With Open Hands** and **Indiana — Cherish Open Arms**) with zero-downtime scalability for future expansion (e.g., **Florida**).
+Crystal is engineered as a **Multi-State Frontend + Unified API + Centralized Backend Infrastructure** platform. It consolidates independent state agency operations (**Georgia — With Open Hands** and **Indiana — Cherish Open Arms**) onto a single scalable backend, while allowing future state expansions (e.g., **Florida**) to be added without rebuilding or duplicating the core platform.
+
+```text
+Georgia Domain (withopenhands.com)
+      ↓
+Georgia Next.js App
+      │
+      ├──────────────┐
+      │              │
+Indiana Domain (cherishopenarms.com)
+      ↓              │
+Indiana Next.js App  │
+      │              │
+      └──────┬───────┘
+             ↓
+      Unified Crystal API
+       (Modular Monolith)
+             ↓
+   ┌─────────┼──────────┐
+   ↓         ↓          ↓
+PostgreSQL Storage   External Services
+/Supabase             SES / Twilio /
+                      DocuSign / Video
+```
 
 ```mermaid
 graph TB
-    subgraph ClientTier["Client / Edge Layer"]
-        DNS["GoDaddy DNS / Cloudflare Edge (WAF, SSL, CDN)"]
-        WOH_Domain["withopenhands.com (GA)"] --> DNS
-        COA_Domain["cherishopenarms.com (IN)"] --> DNS
-        Custom_Domain["app.domain.com / state portals"] --> DNS
+    subgraph ClientTier["Client / State Domain Layer"]
+        WOH_Domain["Georgia Domain<br/>withopenhands.com"]
+        COA_Domain["Indiana Domain<br/>cherishopenarms.com"]
+        FL_Domain["Florida Domain (Future)<br/>florida-domain.com"]
     end
 
-    subgraph AppTier["Application Layer (Next.js 14+ App Router)"]
-        Middleware["Next.js Middleware<br/>(Host / Path State Detection)"]
-        DNS --> Middleware
+    subgraph FrontendApps["State Frontend Tier (Next.js 14+ Applications)"]
+        GA_App["Georgia Next.js App<br/>(apps/georgia)<br/>With Open Hands UI & Forms"]
+        IN_App["Indiana Next.js App<br/>(apps/indiana)<br/>Cherish Open Arms UI & Forms"]
+        FL_App["Florida Next.js App (Future)<br/>(apps/florida)"]
+        SharedUI["Shared Packages<br/>(@crystal/ui, @crystal/types, @crystal/validation)"]
         
-        subgraph Routes["App Router Modules"]
-            PublicWeb["/(public)/[state]<br/>Branded Public Sites"]
-            CaregiverApp["/(portals)/caregiver<br/>Onboarding & Portal"]
-            TrainingApp["/(portals)/training<br/>In-Service Video & Quizzes"]
-            ClientApp["/(portals)/client<br/>Intake & Authorization"]
-            AdminApp["/(admin)/dashboard<br/>Super & State Admin Hub"]
+        WOH_Domain --> GA_App
+        COA_Domain --> IN_App
+        FL_Domain -.-> FL_App
+        
+        SharedUI -.-> GA_App
+        SharedUI -.-> IN_App
+        SharedUI -.-> FL_App
+    end
+
+    subgraph APITier["Unified Backend Tier (apps/api)"]
+        Gateway["Reverse Proxy / API Gateway (TLS 1.3 Termination)"]
+        
+        subgraph ModularMonolith["Unified Crystal API (Modular Monolith)"]
+            AuthMod["Authentication"]
+            UserMod["Users"]
+            OrgMod["Organizations / States"]
+            CaregiverMod["Caregivers"]
+            ClientMod["Clients"]
+            DocMod["Documents"]
+            CredMod["Credentials"]
+            AuthTrackMod["Authorizations"]
+            TrainMod["Training"]
+            NotifMod["Notifications"]
+            ReportMod["Reports"]
+            AuditMod["Audit Logs"]
+            IntegMod["Integrations"]
         end
         
-        Middleware --> PublicWeb
-        Middleware --> CaregiverApp
-        Middleware --> TrainingApp
-        Middleware --> ClientApp
-        Middleware --> AdminApp
-    end
-
-    subgraph BackendTier["Self-Hosted Backend Tier (AWS EC2 / Docker)"]
-        Nginx["Caddy / Nginx Reverse Proxy (TLS Termination)"]
-        SupabaseAuth["Supabase GoTrue (Auth & JWT)"]
-        PostgREST["PostgREST API Server"]
-        PostgresDB[("PostgreSQL 15+<br/>Row-Level Security (RLS)")]
-        S3Storage["Supabase Storage / AWS S3<br/>(AES-256 Encrypted Documents)"]
-        WorkerService["Background Worker / Cron Service<br/>(Reminders & Escalations)"]
+        GA_App --> Gateway
+        IN_App --> Gateway
+        FL_App -.-> Gateway
         
-        Middleware --> Nginx
-        Nginx --> SupabaseAuth
-        Nginx --> PostgREST
-        PostgREST --> PostgresDB
-        Nginx --> S3Storage
-        WorkerService --> PostgresDB
+        Gateway --> AuthMod
+        Gateway --> UserMod
+        Gateway --> OrgMod
+        Gateway --> CaregiverMod
+        Gateway --> ClientMod
+        Gateway --> DocMod
+        Gateway --> CredMod
+        Gateway --> AuthTrackMod
+        Gateway --> TrainMod
+        Gateway --> NotifMod
+        Gateway --> ReportMod
+        Gateway --> AuditMod
+        Gateway --> IntegMod
     end
 
-    subgraph ExternalServices["Third-Party Cloud Services"]
+    subgraph DataTier["Centralized Infrastructure & Data Tier"]
+        PostgresDB[("PostgreSQL 15+ Database<br/>(Row-Level Security / RLS)")]
+        SecureStorage["Secure Object Storage<br/>(Supabase Storage / AWS S3<br/>AES-256 Encrypted)"]
+        CronWorker["Background Cron Worker<br/>(Reminders & Compliance Checks)"]
+        
+        ModularMonolith --> PostgresDB
+        ModularMonolith --> SecureStorage
+        CronWorker --> PostgresDB
+    end
+
+    subgraph ExternalServices["External Cloud Integrations"]
         SES["Amazon SES (HIPAA-compliant Email)"]
-        Twilio["Twilio API (SMS Reminders)"]
-        ESign["DocuSign / SignWell API (E-Signatures)"]
-        VideoStream["Cloudflare Stream / Mux / Vimeo (Training Video)"]
+        Twilio["Twilio API (SMS Alerts)"]
+        ESign["DocuSign / SignWell (E-Signatures)"]
+        VideoStream["Cloudflare Stream / Mux (Training Video)"]
         KMS["AWS KMS (Key Management)"]
-        CloudWatch["CloudWatch / Sentry (Monitoring)"]
     end
 
-    AppTier --> SES
-    AppTier --> Twilio
-    AppTier --> ESign
-    AppTier --> VideoStream
-    BackendTier --> KMS
-    BackendTier --> CloudWatch
-    WorkerService --> SES
-    WorkerService --> Twilio
+    IntegMod --> SES
+    IntegMod --> Twilio
+    IntegMod --> ESign
+    IntegMod --> VideoStream
+    SecureStorage --> KMS
+    CronWorker --> NotifMod
 ```
 
 ---
 
-## 2. Technology Stack & Component Specifications
+## 2. Unified API as a Modular Monolith
 
-| Tier | Technology | Rationale & Specifications |
-| :--- | :--- | :--- |
-| **Frontend Framework** | **Next.js 14+ (App Router)** + **TypeScript** | Server-Side Rendering (SSR) for SEO-optimized public state pages; React Server Components (RSC) and Server Actions for high-performance secure portals. |
-| **Styling & UI** | **Tailwind CSS** + **shadcn/ui** + **Lucide Icons** | Accessible (ARIA-compliant), highly customizable component library with dynamic CSS variables for state branding (e.g. GA vs IN brand palettes). |
-| **Backend & DB** | **Self-Hosted Supabase** on **PostgreSQL 15+** | Full open-source Supabase stack (GoTrue Auth, PostgREST, Realtime, Storage engine) providing PostgreSQL power without vendor lock-in. |
-| **Data Isolation** | **PostgreSQL Row-Level Security (RLS)** | Kernel-level data segregation by `org_id` / `state_id` and user role, preventing cross-tenant data leaks. |
-| **Document Storage** | **Supabase Storage / AWS S3** | Encrypted S3 buckets with private ACLs; time-limited presigned URLs (15-minute expiration) for viewing credentials and medical records. |
-| **E-Signatures** | **DocuSign / SignWell REST API** | Webhook-driven e-signature lifecycle for caregiver onboarding packages and client admission consents. |
-| **Video Streaming** | **Cloudflare Stream / Mux / Vimeo** | Adaptive bitrate streaming (HLS/DASH) for training videos with player progress tracking hooks. |
-| **Notifications** | **Amazon SES** (Email) + **Twilio** (SMS) | Low-cost, highly reliable transactional delivery; stripped of PHI to maintain HIPAA compliance. |
-| **Reverse Proxy** | **Caddy / Nginx** | Automatic TLS/SSL certificates via Let's Encrypt / Cloudflare Origin CA, rate limiting, and HTTP/2 proxying. |
-| **Hosting & Cloud** | **AWS EC2 (Ubuntu 22.04 LTS)** + **Docker Compose** | Single containerized VM architecture keeping total infrastructure spend within **$100–$200/month**. |
+> [!IMPORTANT]
+> Crystal is deliberately designed **not** as a collection of microservices, but as a **Modular Monolith**.
+> It is **one single backend application** containing clearly separated internal logical modules. This keeps system complexity, operations, and infrastructure overhead low while establishing clean, decoupled boundaries between business domains.
+
+```text
+Crystal API (Modular Monolith)
+│
+├── Authentication       (Session tokens, password hashing, MFA, JWT validation)
+├── Users                (User profiles, account statuses, profile mutations)
+├── Organizations/States (Tenant definitions, branding configs, state metadata)
+├── Caregivers           (Application intake, onboarding funnels, profile data)
+├── Clients              (Intake submissions, care plans, admission tracking)
+├── Documents            (Metadata indexing, signed URL issuance, file verification)
+├── Credentials          (Expiration tracking, compliance status evaluation)
+├── Authorizations       (Payer/Medicaid authorization dates, unit tracking)
+├── Training             (Course catalogs, quiz scoring, certificate PDF generation)
+├── Notifications        (Email/SMS templating, queueing, zero-PHI formatting)
+├── Reports              (Aggregations, compliance matrices, CSV/PDF exports)
+├── Audit Logs           (Immutable HIPAA access logs, mutation auditing)
+└── Integrations         (Adapters for SES, Twilio, DocuSign, Cloudflare Stream, S3)
+```
+
+### 2.1 Module Boundary Rules
+1. **Single Deployable Unit:** All modules are compiled, packaged, and deployed together as the Unified Crystal API.
+2. **Strict Internal Interfaces:** Modules communicate through documented TypeScript interfaces and domain service functions, never through ad-hoc raw queries bypassing domain rules.
+3. **No Inter-Service Network Calls:** Modules do not perform HTTP/gRPC roundtrips to communicate with each other; invocations occur in-process.
+4. **Shared Database Context:** Modules operate against the centralized PostgreSQL database with transactions when atomic cross-module workflows are required.
 
 ---
 
-## 3. Multi-Tenant & Multi-State Routing Design
+## 3. Frontend vs Backend vs Database Responsibilities
+
+A clear boundary is enforced across all layers of the architecture:
 
 ```mermaid
-flowchart TD
-    Req[Incoming HTTP Request] --> HostCheck{Evaluate Hostname / Path}
-    HostCheck -- "withopenhands.com OR /ga" --> SetGA["Set Organization: Georgia (With Open Hands)<br/>Theme: GA Brand Palette"]
-    HostCheck -- "cherishopenarms.com OR /in" --> SetIN["Set Organization: Indiana (Cherish Open Arms)<br/>Theme: IN Brand Palette"]
-    HostCheck -- "futurestate.com OR /fl" --> SetFL["Set Organization: Florida (Expansion Ready)<br/>Theme: FL Brand Palette"]
-    HostCheck -- "app.domain.com" --> PortalAuth{"Check Auth Session"}
-    
-    SetGA --> RenderPublic[Render Public State Pages]
-    SetIN --> RenderPublic
-    SetFL --> RenderPublic
-    
-    PortalAuth -- Valid Session --> ResolveRole["Resolve User Role & Assigned State(s)"]
-    ResolveRole --> ApplyRLS["Attach JWT claims (org_id, role, user_id) to Supabase Client"]
-    ApplyRLS --> RenderPortal[Render Role Dashboard]
+graph LR
+    subgraph Frontend["1. Next.js State Applications"]
+        F1["Page Layouts & Routing"]
+        F2["State Marketing & Content"]
+        F3["UI Forms & Input Masking"]
+        F4["Client-side Validation"]
+        F5["Presentation Logic & Themes"]
+    end
+
+    subgraph Backend["2. Unified Crystal API"]
+        B1["Central Business Logic"]
+        B2["Authorization & RBAC"]
+        B3["State Access Control"]
+        B4["Data Access & Mutations"]
+        B5["Credential & Training Engines"]
+        B6["External Integrations"]
+        B7["Security Enforcement"]
+    end
+
+    subgraph Database["3. PostgreSQL / Supabase / Storage"]
+        D1["Data Persistence"]
+        D2["Row-Level Security (RLS)"]
+        D3["Integrity & Constraints"]
+        D4["Secure AES-256 Object Storage"]
+        D5["Audit Log Immutability"]
+    end
+
+    Frontend -->|HTTP / JSON via Shared DTOs| Backend
+    Backend -->|SQL Queries & S3 SDK| Database
 ```
 
-### 3.1 Next.js Middleware State Resolution
-Next.js middleware inspects incoming domain headers and URL subpaths:
-- Custom domain `withopenhands.com` $\rightarrow$ internal route rewrite to `/(public)/ga`
-- Custom domain `cherishopenarms.com` $\rightarrow$ internal route rewrite to `/(public)/in`
-- Portal paths (`/portal/...`) extract user organization context from the authenticated Supabase JWT session claims.
+| Layer | Component | Core Responsibilities | What It Must NOT Do |
+| :--- | :--- | :--- | :--- |
+| **Frontend** | **State Next.js Apps** (`apps/georgia`, `apps/indiana`) | • UI rendering & SSR marketing pages<br/>• Routing & navigation<br/>• State-specific text, licenses, disclosures<br/>• Form controls & user interaction state<br/>• Presentation-layer theming | • Duplicate business logic<br/>• Perform direct database writes<br/>• Handle third-party secrets (SES, Twilio)<br/>• Rely on client-only auth checks |
+| **Backend** | **Unified Crystal API** (`apps/api`) | • Centralized business logic<br/>• Authentication & session verification<br/>• Role-based & state-based authorization<br/>• Server-side Zod validation<br/>• Workflows (quiz grading, cert generation)<br/>• External service orchestration | • Duplicate endpoints per state<br/>• Depend on frontend state for security<br/>• Split into microservices |
+| **Database & Storage** | **PostgreSQL 15+ / S3 / Supabase** | • Persistent relational data storage<br/>• PostgreSQL Row-Level Security (RLS)<br/>• Foreign key & check constraints<br/>• Encrypted document storage (AES-256)<br/>• Ephemeral presigned URL delivery | • Publicly expose unauthenticated files<br/>• Allow cross-tenant data queries |
 
 ---
 
-## 4. Database Schema & Data Isolation Model
+## 4. State & Organization Isolation Model
+
+Crystal enforces strict multi-tenant isolation at both the **API layer** and the **database kernel layer**:
+
+```text
+Georgia User Request
+   ↓
+Who is the user?            → JWT claims: user_id = 'usr_123'
+What role do they have?     → role = 'state_admin'
+What organization/state?    → org_id = 'org_ga_456' (Georgia / With Open Hands)
+What resources allowed?     → Only Georgia records (`org_id = org_ga_456`)
+   ↓
+API Authorization Guard     → Validates role permissions and tenant scope
+   ↓
+PostgreSQL Database RLS     → Enforces `USING (org_id = current_user_org())`
+   ↓
+Georgia-Authorized Data Returned
+```
+
+### 4.1 Isolation Guarantees
+1. **No Client-Side Reliance:** A Georgia user or coordinator **cannot** query or mutate Indiana records simply by altering a request parameter, header, or URL.
+2. **Context Derivation:** State context is derived directly from the authenticated user session and validated organization membership, not from client-supplied parameters.
+3. **Database RLS as the Ultimate Barrier:** Even if an API handler had an omission in its SQL `WHERE` clause, PostgreSQL Row-Level Security ensures that unauthorized rows are physically invisible to the database session.
+
+---
+
+## 5. Database Architecture & Data Model
+
+A single centralized PostgreSQL 15+ database powers all state operations. All core entities explicitly establish tenant ownership via `org_id` foreign keys to the `organizations` table.
 
 ```mermaid
 erDiagram
     ORGANIZATIONS ||--o{ USERS : "belongs to"
-    ORGANIZATIONS ||--o{ CAREGIVER_PROFILES : "scoped to"
-    ORGANIZATIONS ||--o{ CLIENT_PROFILES : "scoped to"
-    ORGANIZATIONS ||--o{ COURSES : "owns"
+    ORGANIZATIONS ||--o{ CAREGIVERS : "scoped to"
+    ORGANIZATIONS ||--o{ CLIENTS : "scoped to"
+    ORGANIZATIONS ||--o{ DOCUMENTS : "owns"
+    ORGANIZATIONS ||--o{ CREDENTIALS : "tracks"
+    ORGANIZATIONS ||--o{ AUTHORIZATIONS : "holds"
+    ORGANIZATIONS ||--o{ COURSES : "authors"
+    ORGANIZATIONS ||--o{ SECURITY_AUDIT_LOGS : "logs"
+
+    USERS ||--|| CAREGIVERS : "has profile"
+    USERS ||--|| CLIENTS : "has profile"
+    USERS ||--o{ TRAINING_RECORDS : "completes"
     
-    USERS ||--|| CAREGIVER_PROFILES : "has"
-    USERS ||--|| CLIENT_PROFILES : "has"
-    USERS ||--o{ AUDIT_LOGS : "generates"
+    CAREGIVERS ||--o{ DOCUMENTS : "submits"
+    CAREGIVERS ||--o{ CREDENTIALS : "maintains"
     
-    CAREGIVER_PROFILES ||--o{ CAREGIVER_DOCUMENTS : "submits"
-    CAREGIVER_PROFILES ||--o{ TRAINING_PROGRESS : "completes"
+    CLIENTS ||--o{ DOCUMENTS : "uploads"
+    CLIENTS ||--o{ AUTHORIZATIONS : "assigned"
     
-    CLIENT_PROFILES ||--o{ CLIENT_DOCUMENTS : "uploads"
-    CLIENT_PROFILES ||--o{ AUTHORIZATIONS : "holds"
-    CLIENT_PROFILES ||--o{ ESIGNATURE_REQUESTS : "signs"
-    
-    COURSES ||--o{ COURSE_MODULES : "contains"
-    COURSE_MODULES ||--o{ QUIZZES : "tests with"
-    QUIZZES ||--o{ TRAINING_PROGRESS : "evaluates"
-    TRAINING_PROGRESS ||--o| CERTIFICATES : "awards"
+    COURSES ||--o{ TRAINING_RECORDS : "evaluates"
 ```
 
-### 4.1 Core Relational Tables
+### 5.1 Core Schema Entities
 
 #### `organizations` (Tenants / States)
 - `id` (UUID, PK)
 - `name` (TEXT) — e.g. "With Open Hands", "Cherish Open Arms"
-- `state_code` (VARCHAR(2)) — 'GA', 'IN', 'FL'
-- `domain` (TEXT) — 'withopenhands.com', 'cherishopenarms.com'
-- `branding_config` (JSONB) — Primary colors, logos, contact info, state license numbers
+- `state_code` (VARCHAR(2), UNIQUE) — `'GA'`, `'IN'`, `'FL'`
+- `domain` (TEXT, UNIQUE) — `'withopenhands.com'`, `'cherishopenarms.com'`
+- `license_number` (TEXT) — State agency license identifier
+- `branding_config` (JSONB) — Colors, logos, contact info, state disclosures
 - `created_at` (TIMESTAMPTZ)
 
-#### `users` (Auth & Profile Mapping)
+#### `users` (Central Identity & Role)
 - `id` (UUID, PK, references `auth.users`)
-- `org_id` (UUID, FK $\rightarrow$ `organizations.id`)
+- `org_id` (UUID, FK $\rightarrow$ `organizations.id`, NULL for global super admins)
 - `role` (ENUM: `super_admin`, `state_admin`, `agency_staff`, `training_admin`, `caregiver`, `client`)
 - `email` (TEXT, UNIQUE)
 - `first_name` (TEXT), `last_name` (TEXT), `phone` (TEXT)
 - `status` (ENUM: `pending`, `active`, `suspended`, `archived`)
 - `created_at` (TIMESTAMPTZ)
 
-#### `caregiver_profiles`
-- `id` (UUID, PK)
-- `user_id` (UUID, FK $\rightarrow$ `users.id`)
-- `org_id` (UUID, FK $\rightarrow$ `organizations.id`)
-- `application_status` (ENUM: `draft`, `submitted`, `under_review`, `approved`, `rejected`)
-- `application_data` (JSONB) — Full form responses, work history, references
-- `compliance_status` (ENUM: `compliant`, `expiring_soon`, `non_compliant`, `action_required`)
-- `hired_at` (TIMESTAMPTZ)
+#### `caregivers` & `credentials`
+- `caregivers`: `id`, `user_id`, `org_id`, `application_status`, `compliance_status`, `hired_at`, `application_data` (JSONB)
+- `credentials`: `id`, `caregiver_id`, `org_id`, `credential_type` (`cpr`, `cna`, `tb_test`, `auto_insurance`, `driver_license`, etc.), `issue_date` (DATE), `expiration_date` (DATE), `status` (`valid`, `expiring_soon`, `expired`, `missing`)
 
-#### `caregiver_documents` (Credentials & Onboarding Files)
+#### `clients` & `authorizations`
+- `clients`: `id`, `user_id`, `org_id`, `medicaid_id` (TEXT), `status` (`intake_draft`, `submitted`, `active`, `discharged`), `care_plan_summary` (JSONB)
+- `authorizations`: `id`, `client_id`, `org_id`, `payer_name` (TEXT), `auth_number` (TEXT), `start_date` (DATE), `end_date` (DATE), `authorized_units` (INT), `used_units` (INT), `status` (`active`, `expiring_soon`, `expired`)
+
+#### `documents` (Caregiver & Client Files)
 - `id` (UUID, PK)
-- `caregiver_id` (UUID, FK $\rightarrow$ `caregiver_profiles.id`)
 - `org_id` (UUID, FK $\rightarrow$ `organizations.id`)
-- `category` (ENUM: `drivers_license`, `ssn`, `cpr`, `cna_hha_cert`, `tb_test`, `physical_exam`, `background_check`, `auto_insurance`, `direct_deposit`, `other`)
-- `file_path` (TEXT) — S3 key in private bucket
-- `file_name` (TEXT), `mime_type` (TEXT), `file_size` (INT)
+- `owner_id` (UUID, references `users.id`)
+- `entity_type` (ENUM: `caregiver`, `client`)
+- `category` (TEXT) — e.g. `cpr_cert`, `tb_clearance`, `insurance_card`, `signed_consent`
+- `storage_path` (TEXT) — Private S3/Storage object key
+- `file_name` (TEXT), `mime_type` (TEXT), `file_size_bytes` (INT)
 - `expiration_date` (DATE, NULLABLE)
 - `verification_status` (ENUM: `pending`, `approved`, `rejected`, `expired`)
 - `verified_by` (UUID, FK $\rightarrow$ `users.id`, NULLABLE)
-- `verified_at` (TIMESTAMPTZ, NULLABLE)
-- `admin_notes` (TEXT)
+- `created_at` (TIMESTAMPTZ)
 
-#### `courses` & `training_progress`
+#### `training_records` & `courses`
 - `courses`: `id`, `org_id` (NULL for global, UUID for state-specific), `title`, `description`, `video_url`, `passing_score`, `hours_credit`
-- `training_progress`: `id`, `user_id`, `course_id`, `status` (`not_started`, `in_progress`, `passed`, `failed`), `quiz_score` (NUMERIC), `completed_at` (TIMESTAMPTZ)
-- `certificates`: `id`, `progress_id`, `certificate_number` (UNIQUE), `pdf_storage_path` (TEXT), `issued_at` (TIMESTAMPTZ)
+- `training_records`: `id`, `user_id`, `course_id`, `org_id`, `status` (`in_progress`, `passed`, `failed`), `quiz_score` (NUMERIC), `completed_at` (TIMESTAMPTZ), `certificate_url` (TEXT)
 
-#### `client_profiles` & `authorizations`
-- `client_profiles`: `id`, `user_id`, `org_id`, `medicaid_id` (TEXT), `primary_diagnosis` (TEXT), `intake_status` (`draft`, `submitted`, `active`, `discharged`), `service_start_date` (DATE)
-- `authorizations`: `id`, `client_id`, `org_id`, `payer_name` (TEXT), `auth_number` (TEXT), `start_date` (DATE), `end_date` (DATE), `authorized_units` (INT), `status` (`active`, `expiring_soon`, `expired`)
-- `client_documents`: `id`, `client_id`, `org_id`, `category` (`insurance_card`, `medicaid_doc`, `physician_order`, `plan_of_care`, `poa_authorization`), `file_path` (TEXT)
-
-#### `audit_logs` (Security & HIPAA Compliance)
+#### `security_audit_logs` (HIPAA & Security Compliance)
 - `id` (BIGSERIAL, PK)
 - `actor_id` (UUID, FK $\rightarrow$ `users.id`)
 - `org_id` (UUID, FK $\rightarrow$ `organizations.id`)
-- `action` (TEXT) — e.g. `VIEW_DOCUMENT`, `UPDATE_AUTHORIZATION`, `APPROVE_CAREGIVER`
-- `target_entity` (TEXT), `target_id` (TEXT)
+- `action` (TEXT) — e.g. `VIEW_PHI`, `GENERATE_PRESIGNED_URL`, `UPDATE_CREDENTIAL`, `APPROVE_CAREGIVER`
+- `resource_type` (TEXT), `resource_id` (TEXT)
 - `ip_address` (INET), `user_agent` (TEXT)
 - `created_at` (TIMESTAMPTZ DEFAULT NOW())
 
 ---
 
-## 5. Row-Level Security (RLS) Policy Specifications
+## 6. API Design & Shared Endpoints
 
-PostgreSQL RLS ensures complete isolation at the database layer:
+The Unified API exposes a standardized RESTful API under `/api/v1/`.
 
-```sql
--- Enable RLS on core tables
-ALTER TABLE organizations ENABLE ROW LEVEL SECURITY;
-ALTER TABLE caregiver_documents ENABLE ROW LEVEL SECURITY;
-ALTER TABLE client_profiles ENABLE ROW LEVEL SECURITY;
-ALTER TABLE authorizations ENABLE ROW LEVEL SECURITY;
+> [!CAUTION]
+> **Anti-Pattern:** Do **not** create duplicate state endpoints (e.g. `/api/georgia/caregivers` or `/api/indiana/caregivers`).
+> All state applications interact with the **same shared endpoints**. Organization context is resolved from the user's authentication token and backend permissions.
 
--- Helper function to get current user's org_id and role from JWT claims
-CREATE OR REPLACE FUNCTION current_user_org() RETURNS UUID AS $$
-  SELECT NULLIF(current_setting('request.jwt.claims', true)::jsonb->'app_metadata'->>'org_id', '')::UUID;
-$$ LANGUAGE SQL STABLE;
+### 6.1 Standard Shared Route Structure
 
-CREATE OR REPLACE FUNCTION current_user_role() RETURNS TEXT AS $$
-  SELECT NULLIF(current_setting('request.jwt.claims', true)::jsonb->'app_metadata'->>'role', '')::TEXT;
-$$ LANGUAGE SQL STABLE;
-
--- RLS Policy: Super Admins have global access
-CREATE POLICY super_admin_all ON caregiver_documents
-  FOR ALL
-  USING (current_user_role() = 'super_admin');
-
--- RLS Policy: State Admins & Staff access only their state/organization
-CREATE POLICY state_staff_org_access ON caregiver_documents
-  FOR ALL
-  USING (
-    current_user_role() IN ('state_admin', 'agency_staff') 
-    AND org_id = current_user_org()
-  );
-
--- RLS Policy: Caregivers can only access their own documents
-CREATE POLICY caregiver_own_docs ON caregiver_documents
-  FOR ALL
-  USING (
-    current_user_role() = 'caregiver' 
-    AND caregiver_id IN (SELECT id FROM caregiver_profiles WHERE user_id = auth.uid())
-  );
+```text
+/api/v1/
+├── auth/
+│   ├── POST /login
+│   ├── POST /register
+│   ├── POST /refresh
+│   └── POST /logout
+├── users/
+│   ├── GET  /me
+│   ├── PUT  /me
+│   └── GET  / (Admin: list users in user's state)
+├── organizations/
+│   ├── GET  /current
+│   └── GET  / (Super Admin: list all states)
+├── caregivers/
+│   ├── GET  / (Admin: list caregivers in state)
+│   ├── POST /application (Submit onboarding application)
+│   ├── GET  /:id (Get caregiver profile)
+│   └── PUT  /:id/status (Admin: approve/reject application)
+├── clients/
+│   ├── GET  / (Admin: list clients in state)
+│   ├── POST /intake (Submit client intake)
+│   └── GET  /:id (Get client profile)
+├── documents/
+│   ├── POST /upload-url (Request secure presigned upload URL)
+│   ├── GET  /:id/download-url (Request ephemeral signed preview/download URL)
+│   └── PUT  /:id/verify (Admin: verify/reject document)
+├── credentials/
+│   ├── GET  / (List credentials for caregiver / state)
+│   └── GET  /expiring (Admin: list expiring compliance items)
+├── authorizations/
+│   ├── GET  / (List client authorizations)
+│   └── POST / (Create/update authorization)
+├── training/
+│   ├── GET  /courses (List available in-service courses)
+│   ├── POST /courses/:id/submit-quiz (Submit quiz answers)
+│   └── GET  /certificates/:id (Download verified PDF certificate)
+├── notifications/
+│   ├── GET  /inbox (User notification inbox)
+│   └── POST /dispatch (Admin/System: queue notification)
+└── reports/
+    ├── GET  /compliance (Compliance summary report)
+    └── GET  /export (Export CSV/PDF report)
 ```
 
 ---
 
-## 6. AWS Infrastructure & Self-Hosted Topology ($100–$200/mo)
+## 7. Secure Document Management
+
+Crystal processes sensitive caregiver PII and client PHI. Documents are never treated as static public assets.
+
+```mermaid
+sequenceDiagram
+    autonumber
+    actor User as Caregiver / Client / Admin
+    participant App as State Next.js App
+    participant API as Unified Crystal API
+    participant DB as PostgreSQL (RLS)
+    participant S3 as Secure Object Storage (S3 / Supabase)
+
+    Note over User,S3: 1. Secure Document Upload Workflow
+    User->>App: Selects credential/medical file
+    App->>API: POST /api/v1/documents/upload-url {category, filename, mime}
+    API->>API: Authenticate user & verify org permissions
+    API->>S3: Generate time-limited Presigned Upload URL (15 min)
+    API-->>App: Return Presigned URL & Document Record ID
+    App->>S3: Directly upload file binary via PUT (AES-256 encrypted)
+    App->>API: POST /api/v1/documents/:id/confirm-upload
+    API->>DB: Save document metadata & link to user/org
+
+    Note over User,S3: 2. Authorized Document Retrieval Workflow
+    User->>App: Clicks "View Document"
+    App->>API: GET /api/v1/documents/:id/download-url
+    API->>API: Validate user role & org match (or caregiver ownership)
+    API->>DB: Log access in security_audit_logs
+    API->>S3: Generate Ephemeral Signed Download URL (15 min)
+    API-->>App: Return Signed Download URL
+    App-->>User: Open secure preview in browser
+```
+
+1. **Storage Layer:** S3 buckets / Supabase Storage with block-public-access enabled, encrypted at rest via AWS KMS (AES-256).
+2. **Metadata Layer:** Database tracks category, expiration dates, upload dates, verification status, and storage references.
+3. **Delivery Layer:** Access strictly via short-lived (15-minute) signed URLs generated on-demand by the Unified API.
+
+---
+
+## 8. Repository Structure (Monorepo Architecture)
+
+The codebase is organized as a clean, unified monorepo separating **state frontends**, **the unified API**, **shared packages**, and **infrastructure**:
+
+```text
+crystal/
+│
+├── apps/
+│   ├── georgia/                 # Next.js 14+ Frontend: Georgia (With Open Hands)
+│   │   ├── src/app/             # State-specific pages, layouts, and public marketing
+│   │   ├── src/components/      # GA-specific branding components
+│   │   └── package.json
+│   │
+│   ├── indiana/                 # Next.js 14+ Frontend: Indiana (Cherish Open Arms)
+│   │   ├── src/app/             # State-specific pages, layouts, and public marketing
+│   │   ├── src/components/      # IN-specific branding components
+│   │   └── package.json
+│   │
+│   └── api/                     # Unified Crystal API (Modular Monolith)
+│       ├── src/
+│       │   ├── modules/         # Clearly separated backend domain modules
+│       │   │   ├── auth/
+│       │   │   ├── users/
+│       │   │   ├── organizations/
+│       │   │   ├── caregivers/
+│       │   │   ├── clients/
+│       │   │   ├── documents/
+│       │   │   ├── credentials/
+│       │   │   ├── authorizations/
+│       │   │   ├── training/
+│       │   │   ├── notifications/
+│       │   │   ├── reports/
+│       │   │   └── audit/
+│       │   ├── integrations/    # External service adapters (SES, Twilio, DocuSign, S3)
+│       │   ├── middleware/      # Auth & state isolation middleware
+│       │   └── server.ts        # API entrypoint
+│       └── package.json
+│
+├── packages/
+│   ├── ui/                      # Shared design system (shadcn/ui + Tailwind tokens)
+│   ├── types/                   # Shared TypeScript models, DTOs, and API contracts
+│   ├── validation/              # Shared Zod validation schemas
+│   └── config/                  # Shared TypeScript, ESLint, and Tailwind configurations
+│
+├── db_schema/                   # Versioned SQL schema snapshots (db_schema_<date>_v<version>.sql)
+│
+├── infrastructure/
+│   ├── docker/                  # Dockerfiles & Docker Compose configurations
+│   ├── caddy/                   # Caddy reverse proxy & TLS config
+│   ├── supabase/                # PostgreSQL migrations, seed data, and RLS policies
+│   └── scripts/                 # Deployment, backup, and health check scripts
+│
+├── package.json                 # Monorepo root (Turborepo / npm workspaces)
+├── README.md
+└── turbo.json
+```
+
+---
+
+## 9. Self-Hosted AWS Deployment ($100 – $200 / month)
 
 ```mermaid
 graph TD
@@ -253,71 +465,71 @@ graph TD
         subgraph VPC["VPC (Public & Private Subnets)"]
             IGW["Internet Gateway"]
             
-            subgraph EC2Host["EC2 Instance (t4g.xlarge / t3a.xlarge - Ubuntu 22.04)"]
+            subgraph EC2Host["EC2 Instance (t4g.xlarge - 4 vCPU, 16GB RAM)"]
                 CaddyProxy["Caddy Reverse Proxy (Auto SSL, Ports 80/443)"]
-                NextAppContainer["Next.js Production Container (Port 3000)"]
                 
-                subgraph SupabaseDocker["Self-Hosted Supabase Docker Stack"]
-                    Kong["Kong API Gateway"]
-                    GoTrue["Supabase GoTrue (Auth)"]
-                    PostgREST_C["PostgREST Container"]
-                    Realtime_C["Supabase Realtime Container"]
-                    Storage_C["Supabase Storage API"]
-                    PostgresContainer["PostgreSQL 15 Container (with pgvector & RLS)"]
+                GA_App_C["Georgia Next.js Container (Port 3001)"]
+                IN_App_C["Indiana Next.js Container (Port 3002)"]
+                API_C["Unified Crystal API Container (Port 4000)"]
+                
+                subgraph DBStack["PostgreSQL & Storage Stack"]
+                    PostgresC["PostgreSQL 15 Container (with RLS & pgvector)"]
+                    StorageC["Supabase Storage / Local Storage Engine"]
                 end
                 
-                CronWorker["Node.js / Go Background Cron Worker"]
+                CronWorker_C["Background Cron Worker Container"]
             end
             
             EBS["Encrypted EBS Volume (gp3 - 100GB Data & WAL)"]
         end
         
-        S3Private["AWS S3 Bucket (Private, KMS Encrypted, Object Lock)"]
-        SESService["Amazon SES"]
+        S3Private["AWS S3 Private Bucket (KMS Encrypted)"]
+        SESService["Amazon SES (Email)"]
         CloudWatchLogs["AWS CloudWatch Logs & Alarms"]
     end
 
     IGW --> CaddyProxy
-    CaddyProxy --> NextAppContainer
-    CaddyProxy --> Kong
-    Kong --> GoTrue
-    Kong --> PostgREST_C
-    Kong --> Storage_C
-    Kong --> Realtime_C
-    PostgREST_C --> PostgresContainer
-    PostgresContainer --> EBS
-    Storage_C --> S3Private
-    CronWorker --> PostgresContainer
-    CronWorker --> SESService
+    CaddyProxy -- "withopenhands.com" --> GA_App_C
+    CaddyProxy -- "cherishopenarms.com" --> IN_App_C
+    CaddyProxy -- "api.crystalhomecare.com" --> API_C
+    
+    GA_App_C --> API_C
+    IN_App_C --> API_C
+    API_C --> PostgresC
+    API_C --> StorageC
+    PostgresC --> EBS
+    StorageC --> S3Private
+    CronWorker_C --> PostgresC
+    CronWorker_C --> SESService
 ```
 
-### 6.1 Cost Breakdown Estimation (Target: $100 – $200 / month)
+### 9.1 Monthly Cost Estimation
 
-| AWS Resource | Configuration / Plan | Estimated Monthly Cost |
+| Resource | Configuration | Monthly Cost |
 | :--- | :--- | :--- |
-| **AWS EC2 Compute** | `t4g.xlarge` (4 vCPU, 16GB RAM, ARM64) or `t3a.xlarge` (Savings Plan) | $65 – $95 / month |
-| **Amazon EBS Storage** | 100 GB `gp3` SSD (3000 IOPS, 125 MB/s throughput, Encrypted) | $8 – $10 / month |
-| **AWS S3 Storage** | Encrypted Standard S3 for Document Repository & DB Backups (50 GB) | $1.50 – $3 / month |
-| **AWS KMS** | Customer Managed Key for Database and S3 SSE | $1.00 / month |
-| **Amazon SES** | Up to 20,000 transactional emails/month | $2.00 / month |
-| **Cloudflare DNS & CDN** | Free Tier / Pro ($20/mo optional for advanced WAF) | $0 – $20 / month |
-| **Twilio SMS** | ~$0.0079/SMS (~500 SMS alerts/mo) | $4 – $8 / month |
-| **DocuSign / SignWell** | API Starter Plan / Tiered Usage | Variable / Tiered ($15–$30/mo) |
-| **Estimated Total** | **All Core Services Included** | **~$95 – $170 / month** |
+| **AWS EC2 Compute** | `t4g.xlarge` (4 vCPU, 16GB RAM, ARM64) Savings Plan | $65 – $95 / month |
+| **Amazon EBS Storage** | 100 GB `gp3` SSD (Encrypted, 3000 IOPS) | $8 – $10 / month |
+| **AWS S3 Document Storage** | Standard S3 Encrypted (50 GB active storage + backups) | $1.50 – $3 / month |
+| **AWS KMS** | Customer Managed Encryption Key | $1.00 / month |
+| **Amazon SES** | Up to 20,000 emails/month | $2.00 / month |
+| **Cloudflare DNS & CDN** | Free Tier / Standard SSL | $0 / month |
+| **Twilio SMS** | ~$0.0079 per SMS (~500 alerts/mo) | $4 – $8 / month |
+| **DocuSign / SignWell** | API Starter Plan | $15 – $30 / month |
+| **Total Estimated Cost** | **Complete Infrastructure Included** | **~$95 – $150 / month** |
 
 ---
 
-## 7. Security, HIPAA-Ready Controls & Auditability
+## 10. Security, HIPAA-Ready Controls & Auditability
 
 1. **Encryption Standards:**
-   - **In-Transit:** Mandatory HTTPS/TLS 1.3 enforced by Caddy/Cloudflare with HSTS preloaded headers.
-   - **At-Rest:** AWS EBS encrypted using AWS KMS keys; S3 buckets configured with AES-256 Server-Side Encryption (`aws:kms` or `AES256`).
+   - **In-Transit:** TLS 1.3 mandatory across all endpoints enforced by Caddy with HSTS preloaded headers.
+   - **At-Rest:** EBS and S3 volumes encrypted with AWS KMS AES-256 keys.
 2. **Access Control & Least Privilege:**
-   - Database operations executed through strictly scoped PostgREST roles (`anon`, `authenticated`, `service_role`).
-   - IAM policies strictly limit EC2 instance profile access to designated S3 buckets and SES identity ARNs.
-3. **Audit Logging & Tamper Resistance:**
-   - Every file download, credential verification, and client record inspection logs an entry in `audit_logs`.
-   - Admin access to raw database tables is restricted to SSH key-pair bastion or AWS SSM Session Manager.
-4. **Automated Disaster Recovery & Backups:**
-   - Daily automated PostgreSQL WAL archiving to S3 using `pgBackRest` or `wal-g`.
-   - Daily automated EBS volume snapshots with 30-day retention policies.
+   - API endpoints enforce strict role checks (`super_admin`, `state_admin`, `agency_staff`, `caregiver`, `client`).
+   - PostgreSQL RLS enforces physical row segregation by `org_id`.
+3. **Comprehensive Audit Trails:**
+   - Every file download, credential verification, authorization update, and patient inspection writes an immutable record to `security_audit_logs`.
+4. **Zero PHI/PII in Logs & Alerts:**
+   - Error trackers (Sentry), log sinks (CloudWatch), and notifications (SES/Twilio) strictly strip PHI and PII prior to dispatch.
+5. **Disaster Recovery:**
+   - Daily automated database snapshots with S3 WAL archiving and 30-day retention policies.

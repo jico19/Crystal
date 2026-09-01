@@ -1,23 +1,26 @@
-# Feature Specification: Multi-State Website & Portal Routing
+# Feature Specification: Multi-State Website & Dedicated Domain Routing
 
 ## 1. Executive Summary & Scope
 
 ### 1.1 Goal
-Provide a unified web application serving distinct public-facing website experiences and portal entry points for **Georgia (With Open Hands)** and **Indiana (Cherish Open Arms)**, built on a shared design system that dynamically adapts branding and content based on state context, while architecturally prepared for rapid Florida (FL) expansion.
+Deliver dedicated, high-performance public website experiences for **Georgia (With Open Hands - `withopenhands.com`)** and **Indiana (Cherish Open Arms - `cherishopenarms.com`)**, built on a shared design system with state-specific branding and licensing, while communicating with a centralized **Unified API** and providing a unified **Admin Portal** for super administrators to govern all state operations.
 
-### 1.2 Problem Statement
-Currently, the client operates fragmented website assets on GoDaddy across separate domains. Maintaining separate codebases multiplies hosting expenses, complicates compliance updates, and prevents unified lead tracking. A single Next.js 14+ codebase must dynamically resolve incoming domains/paths, inject state-specific branding tokens, route inquiries with strict tenant isolation, and comply with the $100–$200/month infrastructure budget.
+### 1.2 Domain Experience
+- **Georgia Visitors (`withopenhands.com`):** Direct navigation immediately loads the Georgia *With Open Hands* website (Atlanta office, Georgia DCH licensing, teal/gold palette) with zero intermediary splash screens or state picker cards.
+- **Indiana Visitors (`cherishopenarms.com`):** Direct navigation immediately loads the Indiana *Cherish Open Arms* website (Indianapolis office, Indiana FSSA licensing, navy/coral palette) with zero intermediary splash screens or state picker cards.
+- **Super Administrators & Coordinators:** Log into the unified Administrative Portal (`/admin`) to oversee leads, caregivers, clients, credentials, authorizations, and compliance across all states from a single dashboard.
 
 ### 1.3 Scope Boundaries
 - **In-Scope:**
-  - Multi-domain host resolution (`withopenhands.com`, `cherishopenarms.com`, `app.crystalhomecare.com`, and staging path aliases `/ga`, `/in`).
-  - Dynamic CSS variable injection for brand tokens (Georgia deep teal/gold vs. Indiana navy/warm amber).
-  - State switching header dropdown preserving route intent.
-  - SSR public marketing pages (Home, Services, About, Careers/Apply CTA, Client Referral CTA, Contact).
-  - Public lead capture writing to PostgreSQL with instant SES email dispatch.
+  - Dedicated domain resolution (`withopenhands.com` $\rightarrow$ Georgia, `cherishopenarms.com` $\rightarrow$ Indiana).
+  - State-specific SSR public marketing pages (Home, Services, About, Careers CTA, Contact).
+  - State-specific branding tokens (Deep Teal/Gold for GA vs. Deep Navy/Coral for IN).
+  - State-aware public lead capture writing to PostgreSQL with instant notification dispatch.
+  - Optional unobtrusive cross-state link in header/footer for visitors who navigated to the wrong state.
 - **Out-of-Scope:**
+  - Mandatory state-picker splash screen on root domain (each state domain goes directly to its respective organization site).
   - Florida marketing content rollout (database schema supports FL, but assets deferred).
-  - Native mobile deep linking.
+  - Native mobile apps.
 
 ---
 
