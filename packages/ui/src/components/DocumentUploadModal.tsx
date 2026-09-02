@@ -105,6 +105,41 @@ export function DocumentUploadModal({
     }, 600);
   };
 
+  const handleUseSampleDocument = () => {
+    const sampleContent = `%PDF-1.4 TEST CREDENTIAL DOCUMENT\nCategory: ${category}\nIssued: 2025-01-01\nExpiration: 2026-12-31\nOrganization: Crystal Home Care Network`;
+    const blob = new Blob([sampleContent], { type: 'application/pdf' });
+    const sampleFile = new File([blob], `${category}_sample_document.pdf`, { type: 'application/pdf' });
+
+    setSelectedFile(sampleFile);
+    setErrorMessage(null);
+    setIsOcrScanning(true);
+    setOcrDetected(null);
+
+    setTimeout(() => {
+      setIsOcrScanning(false);
+      if (category === 'cpr_first_aid') {
+        setOcrDetected('AHA BLS Provider • Exp: 2026-12-31');
+        setExpirationDate('2026-12-31');
+        setIssueDate('2024-12-31');
+      } else if (category === 'cna_hha_license') {
+        setOcrDetected('Certified Nurse Aide • License #GA-CNA-982104');
+        setExpirationDate('2026-10-15');
+        setIssueDate('2024-10-15');
+      } else if (category === 'tb_test_screen') {
+        setOcrDetected('Negative PPD Skin Test • Annual renewal required');
+        setExpirationDate('2025-09-01');
+        setIssueDate('2024-09-01');
+      } else if (category === 'drivers_license') {
+        setOcrDetected('Class C Driver License • Valid DDS ID');
+        setExpirationDate('2028-06-20');
+        setIssueDate('2020-06-20');
+      } else {
+        setOcrDetected(`Verified ${CATEGORY_LABELS[category]} • Document Verified`);
+        setIssueDate('2025-01-15');
+      }
+    }, 500);
+  };
+
   const handleUpload = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!selectedFile) {
@@ -236,6 +271,17 @@ export function DocumentUploadModal({
                   <p className="text-xs text-gray-400 mt-0.5">Supports PDF, JPG, PNG &amp; HEIC</p>
                 </>
               )}
+            </div>
+            <div className="flex items-center justify-between text-xs text-gray-500 mt-2 px-1">
+              <span>Don't have a document file on hand?</span>
+              <button
+                type="button"
+                onClick={handleUseSampleDocument}
+                className="inline-flex items-center gap-1 font-semibold text-teal-700 hover:text-teal-900 hover:underline cursor-pointer"
+              >
+                <Sparkles className="h-3.5 w-3.5 text-amber-500" />
+                Use Sample Credential
+              </button>
             </div>
           </div>
 

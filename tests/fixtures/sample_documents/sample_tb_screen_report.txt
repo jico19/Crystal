@@ -1,0 +1,9 @@
+CLINICAL OCCUPATIONAL HEALTH SCREENING
+Tuberculosis PPD Screen & Chest X-Ray Report
+Patient: Jane Doe
+Date Administered: 2025-08-10
+Date Read: 2025-08-12
+Induration: 0mm (Negative)
+Valid Through: 2026-08-12
+Clinician: Dr. Robert Vance, MD
+License: GA-MED-44910

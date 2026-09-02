@@ -111,6 +111,7 @@ Open [http://localhost:3000](http://localhost:3000) in your browser.
 * **Caregiver Application:** `http://localhost:3000/ga/apply`
 * **In-Service Training Portal:** `http://localhost:3000/ga/training`
 * **Client Intake Admission:** `http://localhost:3000/ga/intake`
+* **Prior Authorizations & Utilization:** `http://localhost:3000/ga/authorizations`
 
 ### 3. Indiana State Site (*Cherish Open Arms*)
 * **Route:** `http://localhost:3000/in`
@@ -120,6 +121,7 @@ Open [http://localhost:3000](http://localhost:3000) in your browser.
 * **Caregiver Application:** `http://localhost:3000/in/apply`
 * **In-Service Training Portal:** `http://localhost:3000/in/training`
 * **Client Intake Admission:** `http://localhost:3000/in/intake`
+* **Prior Authorizations & Utilization:** `http://localhost:3000/in/authorizations`
 
 ---
 
@@ -132,13 +134,14 @@ Open [http://localhost:3000](http://localhost:3000) in your browser.
 | **Spec 03** | Document & Credential Tracking | ✅ Completed | OCR metadata extraction, 30/60/90-day expiration indexing, compliance score |
 | **Spec 04** | In-Service Training & CEU Portal | ✅ Completed | Anti-skipping video tracking, 80% passing quizzes, SHA-256 certificate issuance |
 | **Spec 05** | Client Intake & Document Vault | ✅ Completed | Demographics, emergency contacts/POA, ADL/IADL care needs, physician orders (485) |
+| **Spec 06** | Prior Authorization & Utilization | ✅ Completed | Procedure codes (T1019, S5125), burn-down meters, weekly caps, 60/30-day alerts |
 | **Spec 09** | E-Signature Workflow | ✅ Completed | Cryptographic SHA-256 envelopes, audit trail, consent packets |
 
 ---
 
 ## Automated Test Suite (Vitest + PGlite)
 
-All 9 test suites (131 tests) pass locally using embedded WebAssembly PostgreSQL (PGlite):
+All 10 test suites (140 tests) pass locally using embedded WebAssembly PostgreSQL (PGlite):
 ```bash
 npm test
 ```
@@ -148,7 +151,9 @@ npm test
 * `tests/document-tracking.test.ts` (13 tests)
 * `tests/pglite-db.test.ts` (12 tests)
 * `tests/training-portal.test.ts` (10 tests)
+* `tests/client-authorizations.test.ts` (9 tests)
 * `tests/client-intake.test.ts` (6 tests)
 * `tests/validation.test.ts` (5 tests)
 * `tests/cors.test.ts` (3 tests)
+
 

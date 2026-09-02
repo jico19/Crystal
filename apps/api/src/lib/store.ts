@@ -848,5 +848,209 @@ export function listClientDocuments(clientId: string): ClientDocument[] {
   return mockClientDocuments.filter((d) => d.client_id === clientId);
 }
 
+// ─── Client Prior Authorizations Store (Feature Spec 06) ─────────────────────
+
+import type {
+  ClientAuthorization,
+  CreateAuthorizationInput,
+  LogUtilizationInput,
+  AuthorizationUtilizationSummary,
+  AuthStatusType,
+} from '@crystal/types';
+
+export const mockClientAuthorizations: Map<string, ClientAuthorization> = new Map([
+  [
+    'auth-001',
+    {
+      id: 'auth-001',
+      client_id: 'cli-001',
+      org_id: '00000000-0000-0000-0000-000000000001',
+      payer_name: 'Georgia Medicaid / CCSP Waiver',
+      authorization_number: 'GA-AUTH-2026-0981',
+      procedure_code: 'T1019',
+      service_type: 'Personal Support Services',
+      start_date: '2026-06-01',
+      end_date: new Date(Date.now() + 45 * 86400000).toISOString().split('T')[0], // 45 days from now
+      total_units_authorized: 400, // 100 hours
+      total_units_used: 120, // 30 hours
+      weekly_hours_cap: 25,
+      status: 'expiring_soon',
+      notes: 'Initial annual authorization approved by Georgia DCH for personal support.',
+      created_at: new Date(Date.now() - 30 * 86400000).toISOString(),
+      updated_at: new Date().toISOString(),
+    },
+  ],
+  [
+    'auth-002',
+    {
+      id: 'auth-002',
+      client_id: 'cli-002',
+      org_id: '00000000-0000-0000-0000-000000000002',
+      payer_name: 'Indiana FSSA / A&D Waiver',
+      authorization_number: 'IN-PA-882190',
+      procedure_code: 'S5125',
+      service_type: 'Attendant Care',
+      start_date: '2026-08-01',
+      end_date: new Date(Date.now() + 120 * 86400000).toISOString().split('T')[0], // 120 days from now
+      total_units_authorized: 640, // 160 hours
+      total_units_used: 40, // 10 hours
+      weekly_hours_cap: 20,
+      status: 'active',
+      notes: 'State-approved attendant care for daily living support.',
+      created_at: new Date(Date.now() - 10 * 86400000).toISOString(),
+      updated_at: new Date().toISOString(),
+    },
+  ],
+]);
+
+export function computeAuthorizationSummary(
+  auth: ClientAuthorization
+): AuthorizationUtilizationSummary {
+  const remaining_units = Math.max(0, auth.total_units_authorized - auth.total_units_used);
+  const total_hours_authorized = Number((auth.total_units_authorized / 4).toFixed(2));
+  const total_hours_used = Number((auth.total_units_used / 4).toFixed(2));
+  const remaining_hours = Number((remaining_units / 4).toFixed(2));
+  const percent_utilized = Math.min(
+    100,
+    Number(((auth.total_units_used / auth.total_units_authorized) * 100).toFixed(1))
+  );
+
+  const now = new Date();
+  const endDate = new Date(auth.end_date);
+  const days_remaining = Math.ceil((endDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+
+  const is_expiring_soon = days_remaining <= 60 && days_remaining > 0;
+  const is_urgent = days_remaining <= 30 && days_remaining > 0;
+  const is_exhausted = remaining_units <= 0;
+  const is_overutilized = auth.total_units_used > auth.total_units_authorized;
+
+  // Determine computed status
+  let status: AuthStatusType = auth.status;
+  if (days_remaining <= 0) {
+    status = 'expired';
+  } else if (is_exhausted) {
+    status = 'exhausted';
+  } else if (is_expiring_soon && status === 'active') {
+    status = 'expiring_soon';
+  }
+
+  return {
+    authorization_id: auth.id,
+    total_units_authorized: auth.total_units_authorized,
+    total_units_used: auth.total_units_used,
+    remaining_units,
+    total_hours_authorized,
+    total_hours_used,
+    remaining_hours,
+    percent_utilized,
+    days_remaining,
+    is_expiring_soon,
+    is_urgent,
+    is_exhausted,
+    is_overutilized,
+    weekly_hours_cap: auth.weekly_hours_cap,
+    status,
+  };
+}
+
+export { computeAuthorizationSummary as storeComputeAuthSummary };
+
+
+export function createClientAuthorization(
+  input: CreateAuthorizationInput
+): ClientAuthorization {
+  const now = new Date().toISOString();
+  const id = `auth-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
+
+  const endDate = new Date(input.end_date);
+  const days_remaining = Math.ceil((endDate.getTime() - Date.now()) / (1000 * 60 * 60 * 24));
+  const status: AuthStatusType = days_remaining <= 60 ? 'expiring_soon' : 'active';
+
+  const newAuth: ClientAuthorization = {
+    id,
+    client_id: input.client_id,
+    org_id: input.org_id,
+    payer_name: input.payer_name,
+    authorization_number: input.authorization_number,
+    procedure_code: input.procedure_code,
+    service_type: input.service_type,
+    start_date: input.start_date,
+    end_date: input.end_date,
+    total_units_authorized: input.total_units_authorized,
+    total_units_used: 0,
+    weekly_hours_cap: input.weekly_hours_cap,
+    status,
+    notes: input.notes,
+    created_at: now,
+    updated_at: now,
+  };
+
+  mockClientAuthorizations.set(id, newAuth);
+  return newAuth;
+}
+
+export function getClientAuthorizations(
+  clientId?: string,
+  orgId?: string,
+  status?: AuthStatusType
+): ClientAuthorization[] {
+  return Array.from(mockClientAuthorizations.values()).filter((auth) => {
+    if (clientId && auth.client_id !== clientId) return false;
+    if (orgId && auth.org_id !== orgId) return false;
+    if (status && auth.status !== status) return false;
+    return true;
+  });
+}
+
+export function getClientAuthorizationById(
+  id: string
+): ClientAuthorization | undefined {
+  return mockClientAuthorizations.get(id);
+}
+
+export function logAuthorizationUtilization(
+  id: string,
+  input: LogUtilizationInput
+): { success: boolean; authorization?: ClientAuthorization; summary?: AuthorizationUtilizationSummary; error?: string } {
+  const auth = mockClientAuthorizations.get(id);
+  if (!auth) {
+    return { success: false, error: `Authorization ${id} not found.` };
+  }
+
+  const newUnitsUsed = auth.total_units_used + input.units_to_log;
+  auth.total_units_used = newUnitsUsed;
+  auth.updated_at = new Date().toISOString();
+
+  const summary = computeAuthorizationSummary(auth);
+  auth.status = summary.status;
+
+  mockClientAuthorizations.set(id, auth);
+
+  return {
+    success: true,
+    authorization: auth,
+    summary,
+  };
+}
+
+export function getExpiringAuthorizations(
+  orgId?: string,
+  daysThreshold: number = 60
+): Array<ClientAuthorization & { summary: AuthorizationUtilizationSummary }> {
+  const now = Date.now();
+  return Array.from(mockClientAuthorizations.values())
+    .filter((auth) => {
+      if (orgId && auth.org_id !== orgId) return false;
+      const endMs = new Date(auth.end_date).getTime();
+      const diffDays = Math.ceil((endMs - now) / (1000 * 60 * 60 * 24));
+      return diffDays <= daysThreshold || auth.status === 'expiring_soon' || auth.status === 'exhausted';
+    })
+    .map((auth) => ({
+      ...auth,
+      summary: computeAuthorizationSummary(auth),
+    }));
+}
+
+
 
 

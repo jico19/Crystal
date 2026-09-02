@@ -466,4 +466,51 @@ export const ClientDocumentUploadSchema = z.object({
 
 export type ClientDocumentUploadInput = z.infer<typeof ClientDocumentUploadSchema>;
 
+// ============================================================================
+// Feature Spec 06: Client Prior Authorization & Utilization Management
+// ============================================================================
+
+export const AuthStatusSchema = z.enum([
+  'active',
+  'expiring_soon',
+  'exhausted',
+  'expired',
+  'renewal_submitted',
+  'closed',
+]);
+
+export const ClientAuthorizationSchema = z
+  .object({
+    client_id: z.string().min(1, 'Client ID required'),
+    org_id: z.string().min(1, 'Organization ID required'),
+    payer_name: z.string().min(2, 'Payer name is required'),
+    authorization_number: z.string().min(3, 'Auth number required'),
+    procedure_code: z.string().min(2, 'Procedure code (e.g. T1019, S5125) required'),
+    service_type: z.string().min(2, 'Service type required'),
+    start_date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Start date must be YYYY-MM-DD'),
+    end_date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'End date must be YYYY-MM-DD'),
+    total_units_authorized: z.number().positive('Units authorized must be greater than 0'),
+    weekly_hours_cap: z.number().positive('Weekly hours cap must be positive').optional(),
+    notes: z.string().optional(),
+  })
+  .refine(
+    (data) => new Date(data.end_date) > new Date(data.start_date),
+    {
+      message: 'End date must be after start date',
+      path: ['end_date'],
+    }
+  );
+
+export type ClientAuthorizationInput = z.infer<typeof ClientAuthorizationSchema>;
+
+export const LogUtilizationSchema = z.object({
+  units_to_log: z.number().positive('Units logged must be greater than 0'),
+  service_date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Service date must be YYYY-MM-DD'),
+  caregiver_id: z.string().optional(),
+  notes: z.string().optional(),
+});
+
+export type LogUtilizationPayload = z.infer<typeof LogUtilizationSchema>;
+
+
 

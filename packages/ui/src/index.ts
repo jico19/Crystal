@@ -39,6 +39,13 @@ export { TrainingPortalCatalog } from './components/TrainingPortalCatalog';
 export type { TrainingPortalCatalogProps } from './components/TrainingPortalCatalog';
 export { ClientIntakeWizard } from './components/ClientIntakeWizard';
 export type { ClientIntakeWizardProps } from './components/ClientIntakeWizard';
+export { AuthorizationBurnDownCard } from './components/AuthorizationBurnDownCard';
+export type { AuthorizationBurnDownCardProps } from './components/AuthorizationBurnDownCard';
+export { CreateAuthorizationModal } from './components/CreateAuthorizationModal';
+export type { CreateAuthorizationModalProps } from './components/CreateAuthorizationModal';
+export { ClientAuthorizationsList } from './components/ClientAuthorizationsList';
+export type { ClientAuthorizationsListProps } from './components/ClientAuthorizationsList';
+
 
 
 

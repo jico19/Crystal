@@ -30,6 +30,11 @@ import type {
   ClientProfile,
   ClientDocument,
   ClientIntakeInput,
+  ClientAuthorization,
+  CreateAuthorizationInput,
+  LogUtilizationInput,
+  AuthorizationUtilizationSummary,
+  AuthStatusType,
 } from '@crystal/types';
 import { computeDocumentHash, sanitizePersonalInfoSSN } from './security';
 import {
@@ -42,6 +47,7 @@ import {
   mockCaregiverTrainingProgress,
   mockClients,
   mockClientDocuments,
+  mockClientAuthorizations,
   enrichDocumentWithExpiration,
   calculateComplianceScore,
   createDocumentAuditLog,
@@ -61,6 +67,12 @@ import {
   listClients as storeListClients,
   uploadClientDocument as storeUploadClientDocument,
   listClientDocuments as storeListClientDocuments,
+  createClientAuthorization as storeCreateAuthorization,
+  getClientAuthorizations as storeGetAuthorizations,
+  getClientAuthorizationById as storeGetAuthorizationById,
+  logAuthorizationUtilization as storeLogUtilization,
+  computeAuthorizationSummary as storeComputeAuthSummary,
+  getExpiringAuthorizations as storeGetExpiringAuthorizations,
 } from './store';
 
 // ─── Singleton Database Instance ─────────────────────────────────────────────
@@ -315,6 +327,29 @@ export async function initDb(force = false): Promise<PGlite> {
           created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
         );
 
+        CREATE TABLE IF NOT EXISTS client_authorizations (
+          id TEXT PRIMARY KEY,
+          client_id TEXT NOT NULL REFERENCES clients(id) ON DELETE CASCADE,
+          org_id UUID REFERENCES organizations(id),
+          payer_name VARCHAR(150) NOT NULL,
+          authorization_number VARCHAR(100) NOT NULL,
+          procedure_code VARCHAR(20) NOT NULL,
+          service_type VARCHAR(100) NOT NULL,
+          start_date DATE NOT NULL,
+          end_date DATE NOT NULL,
+          total_units_authorized NUMERIC(10,2) NOT NULL,
+          total_units_used NUMERIC(10,2) NOT NULL DEFAULT 0.00,
+          weekly_hours_cap NUMERIC(5,2),
+          status TEXT NOT NULL DEFAULT 'active',
+          notes TEXT,
+          created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+          updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+        );
+
+        CREATE INDEX IF NOT EXISTS idx_auth_client ON client_authorizations(client_id);
+        CREATE INDEX IF NOT EXISTS idx_auth_org ON client_authorizations(org_id);
+        CREATE INDEX IF NOT EXISTS idx_auth_dates_status ON client_authorizations(end_date, status);
+
         -- Georgia Default Organization (With Open Hands)
         INSERT INTO organizations (
           id, name, state_code, domain, license_number, contact_phone, contact_email, emergency_phone,
@@ -502,6 +537,28 @@ export async function initDb(force = false): Promise<PGlite> {
           '{"adls":["bathing","continence"],"iadls":["meal_prep","shopping"],"allergies":["Latex"],"diagnoses":["Type 2 Diabetes","Diabetic Neuropathy"]}'::jsonb,
           'private_pay',
           '{}'::jsonb
+        ) ON CONFLICT (id) DO NOTHING;
+
+        INSERT INTO client_authorizations (
+          id, client_id, org_id, payer_name, authorization_number, procedure_code,
+          service_type, start_date, end_date, total_units_authorized, total_units_used,
+          weekly_hours_cap, status, notes
+        ) VALUES (
+          'auth-001', 'cli-001', '00000000-0000-0000-0000-000000000001',
+          'Georgia Medicaid / CCSP Waiver', 'GA-AUTH-2026-0981', 'T1019',
+          'Personal Support Services', '2026-06-01', '2026-10-15', 400.00, 120.00,
+          25.00, 'expiring_soon', 'Initial annual authorization approved by Georgia DCH for personal support.'
+        ) ON CONFLICT (id) DO NOTHING;
+
+        INSERT INTO client_authorizations (
+          id, client_id, org_id, payer_name, authorization_number, procedure_code,
+          service_type, start_date, end_date, total_units_authorized, total_units_used,
+          weekly_hours_cap, status, notes
+        ) VALUES (
+          'auth-002', 'cli-002', '00000000-0000-0000-0000-000000000002',
+          'Indiana FSSA / A&D Waiver', 'IN-PA-882190', 'S5125',
+          'Attendant Care', '2026-08-01', '2026-12-31', 640.00, 40.00,
+          20.00, 'active', 'State-approved attendant care for daily living support.'
         ) ON CONFLICT (id) DO NOTHING;
       `);
     } catch (err) {
@@ -1834,5 +1891,184 @@ export async function listClientDocumentsDb(clientId: string): Promise<ClientDoc
   }
   return storeListClientDocuments(clientId);
 }
+
+// ─── Client Prior Authorizations Database Queries (Feature Spec 06) ──────────
+
+function mapAuthorizationRow(r: any): ClientAuthorization {
+  return {
+    id: r.id,
+    client_id: r.client_id,
+    org_id: r.org_id,
+    payer_name: r.payer_name,
+    authorization_number: r.authorization_number,
+    procedure_code: r.procedure_code,
+    service_type: r.service_type,
+    start_date: r.start_date instanceof Date ? r.start_date.toISOString().split('T')[0] : String(r.start_date),
+    end_date: r.end_date instanceof Date ? r.end_date.toISOString().split('T')[0] : String(r.end_date),
+    total_units_authorized: Number(r.total_units_authorized),
+    total_units_used: Number(r.total_units_used || 0),
+    weekly_hours_cap: r.weekly_hours_cap !== null && r.weekly_hours_cap !== undefined ? Number(r.weekly_hours_cap) : undefined,
+    status: r.status as AuthStatusType,
+    notes: r.notes || undefined,
+    created_at: r.created_at,
+    updated_at: r.updated_at,
+  };
+}
+
+export async function createClientAuthorizationDb(
+  input: CreateAuthorizationInput
+): Promise<ClientAuthorization> {
+  const newAuth = storeCreateAuthorization(input);
+  try {
+    await initDb();
+    const db = getDb();
+    await db.query(
+      `INSERT INTO client_authorizations (
+         id, client_id, org_id, payer_name, authorization_number, procedure_code,
+         service_type, start_date, end_date, total_units_authorized, total_units_used,
+         weekly_hours_cap, status, notes, created_at, updated_at
+       ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)`,
+      [
+        newAuth.id,
+        newAuth.client_id,
+        newAuth.org_id,
+        newAuth.payer_name,
+        newAuth.authorization_number,
+        newAuth.procedure_code,
+        newAuth.service_type,
+        newAuth.start_date,
+        newAuth.end_date,
+        newAuth.total_units_authorized,
+        newAuth.total_units_used,
+        newAuth.weekly_hours_cap || null,
+        newAuth.status,
+        newAuth.notes || null,
+        newAuth.created_at,
+        newAuth.updated_at,
+      ]
+    );
+  } catch (err) {
+    console.warn('[createClientAuthorizationDb] Falling back to memory store:', err);
+  }
+  return newAuth;
+}
+
+export async function getClientAuthorizationsDb(
+  clientId?: string,
+  orgId?: string,
+  status?: AuthStatusType
+): Promise<ClientAuthorization[]> {
+  try {
+    await initDb();
+    const db = getDb();
+    let query = 'SELECT * FROM client_authorizations WHERE 1=1';
+    const params: any[] = [];
+    if (clientId) {
+      params.push(clientId);
+      query += ` AND client_id = $${params.length}`;
+    }
+    if (orgId) {
+      params.push(orgId);
+      query += ` AND org_id = $${params.length}`;
+    }
+    if (status) {
+      params.push(status);
+      query += ` AND status = $${params.length}`;
+    }
+    query += ' ORDER BY end_date ASC';
+
+    const res = await db.query<any>(query, params);
+    if (res.rows && res.rows.length > 0) {
+      return res.rows.map(mapAuthorizationRow);
+    }
+  } catch (err) {
+    console.warn('[getClientAuthorizationsDb] Falling back to memory store:', err);
+  }
+  return storeGetAuthorizations(clientId, orgId, status);
+}
+
+export async function getClientAuthorizationByIdDb(
+  id: string
+): Promise<ClientAuthorization | null> {
+  try {
+    await initDb();
+    const db = getDb();
+    const res = await db.query<any>(
+      'SELECT * FROM client_authorizations WHERE id = $1',
+      [id]
+    );
+    if (res.rows && res.rows[0]) {
+      return mapAuthorizationRow(res.rows[0]);
+    }
+  } catch (err) {
+    console.warn('[getClientAuthorizationByIdDb] Falling back to memory store:', err);
+  }
+  const fallback = storeGetAuthorizationById(id);
+  return fallback || null;
+}
+
+export async function logAuthorizationUtilizationDb(
+  id: string,
+  input: LogUtilizationInput
+): Promise<{ success: boolean; authorization?: ClientAuthorization; summary?: AuthorizationUtilizationSummary; error?: string }> {
+  const memoryResult = storeLogUtilization(id, input);
+  if (!memoryResult.success) {
+    return memoryResult;
+  }
+
+  try {
+    await initDb();
+    const db = getDb();
+    const auth = memoryResult.authorization!;
+    await db.query(
+      `UPDATE client_authorizations
+       SET total_units_used = $1, status = $2, updated_at = $3
+       WHERE id = $4`,
+      [auth.total_units_used, auth.status, auth.updated_at, id]
+    );
+  } catch (err) {
+    console.warn('[logAuthorizationUtilizationDb] Falling back to memory store:', err);
+  }
+
+  return memoryResult;
+}
+
+export async function getExpiringAuthorizationsDb(
+  orgId?: string,
+  daysThreshold: number = 60
+): Promise<Array<ClientAuthorization & { summary: AuthorizationUtilizationSummary }>> {
+  try {
+    await initDb();
+    const db = getDb();
+    const res = await db.query<any>(
+      `SELECT * FROM client_authorizations
+       WHERE ($1::uuid IS NULL OR org_id = $1::uuid)
+         AND (end_date <= (CURRENT_DATE + ($2 || ' days')::interval) OR status IN ('expiring_soon', 'exhausted'))
+       ORDER BY end_date ASC`,
+      [orgId || null, daysThreshold]
+    );
+    if (res.rows && res.rows.length > 0) {
+      return res.rows.map((r) => {
+        const auth = mapAuthorizationRow(r);
+        return {
+          ...auth,
+          summary: storeComputeAuthSummary(auth),
+        };
+      });
+    }
+  } catch (err) {
+    console.warn('[getExpiringAuthorizationsDb] Falling back to memory store:', err);
+  }
+  return storeGetExpiringAuthorizations(orgId, daysThreshold);
+}
+
+export async function getAuthorizationSummaryDb(
+  id: string
+): Promise<AuthorizationUtilizationSummary | null> {
+  const auth = await getClientAuthorizationByIdDb(id);
+  if (!auth) return null;
+  return storeComputeAuthSummary(auth);
+}
+
 
 

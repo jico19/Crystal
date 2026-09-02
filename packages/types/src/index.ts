@@ -589,5 +589,76 @@ export interface ClientIntakeInput {
   payer_details?: PayerDetails;
 }
 
+// ============================================================================
+// Feature Spec 06: Client Prior Authorization & Utilization Management
+// ============================================================================
+
+export type AuthStatusType =
+  | 'active'
+  | 'expiring_soon'
+  | 'exhausted'
+  | 'expired'
+  | 'renewal_submitted'
+  | 'closed';
+
+export interface ClientAuthorization {
+  id: string;
+  client_id: string;
+  org_id: string;
+  payer_name: string;
+  authorization_number: string;
+  procedure_code: string; // e.g. T1019, S5125, S5130
+  service_type: string;
+  start_date: string; // YYYY-MM-DD
+  end_date: string; // YYYY-MM-DD
+  total_units_authorized: number; // 1 unit = 15 mins (4 units = 1 hr)
+  total_units_used: number;
+  weekly_hours_cap?: number;
+  status: AuthStatusType;
+  notes?: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface CreateAuthorizationInput {
+  client_id: string;
+  org_id: string;
+  payer_name: string;
+  authorization_number: string;
+  procedure_code: string;
+  service_type: string;
+  start_date: string;
+  end_date: string;
+  total_units_authorized: number;
+  weekly_hours_cap?: number;
+  notes?: string;
+}
+
+export interface LogUtilizationInput {
+  units_to_log: number;
+  service_date: string;
+  caregiver_id?: string;
+  notes?: string;
+}
+
+export interface AuthorizationUtilizationSummary {
+  authorization_id: string;
+  total_units_authorized: number;
+  total_units_used: number;
+  remaining_units: number;
+  total_hours_authorized: number; // units / 4
+  total_hours_used: number; // units / 4
+  remaining_hours: number;
+  percent_utilized: number;
+  days_remaining: number;
+  is_expiring_soon: boolean; // <= 60 days
+  is_urgent: boolean; // <= 30 days
+  is_exhausted: boolean; // 0 units left
+  is_overutilized: boolean; // used > authorized
+  weekly_hours_cap?: number;
+  status: AuthStatusType;
+}
+
+
 
 
