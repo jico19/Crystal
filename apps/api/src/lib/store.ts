@@ -60,7 +60,87 @@ const DEFAULT_ONBOARDING_CHECKLIST: OnboardingChecklist = {
 };
 
 /** In-memory caregiver profile store for local dev */
-export const mockCaregiverProfiles: Map<string, CaregiverProfile> = new Map();
+export const mockCaregiverProfiles: Map<string, CaregiverProfile> = new Map([
+  [
+    'cg-ga-001',
+    {
+      id: 'profile-001',
+      user_id: 'cg-ga-001',
+      org_id: '00000000-0000-0000-0000-000000000001',
+      state_code: 'GA',
+      application_status: 'approved',
+      application_step: 5,
+      personal_info: {
+        first_name: 'Sarah',
+        last_name: 'Jenkins',
+        email: 'sarah.j@example.com',
+        phone: '(404) 555-0144',
+      } as any,
+      positions_applied: ['pca'],
+      availability: {} as any,
+      experience_history: [],
+      professional_licenses: [],
+      references: [],
+      legal_disclosures: {},
+      onboarding_checklist: { ...DEFAULT_ONBOARDING_CHECKLIST },
+      created_at: new Date(Date.now() - 14 * 86400000).toISOString(),
+      updated_at: new Date(Date.now() - 1 * 86400000).toISOString(),
+    },
+  ],
+  [
+    'cg-ga-002',
+    {
+      id: 'profile-002',
+      user_id: 'cg-ga-002',
+      org_id: '00000000-0000-0000-0000-000000000001',
+      state_code: 'GA',
+      application_status: 'submitted',
+      application_step: 5,
+      personal_info: {
+        first_name: 'Marcus',
+        last_name: 'Cole',
+        email: 'marcus.cole@example.com',
+        phone: '(404) 555-0188',
+      } as any,
+      positions_applied: ['pca', 'companion'],
+      availability: {} as any,
+      experience_history: [],
+      professional_licenses: [],
+      references: [],
+      legal_disclosures: {},
+      onboarding_checklist: { ...DEFAULT_ONBOARDING_CHECKLIST },
+      created_at: new Date(Date.now() - 2 * 86400000).toISOString(),
+      updated_at: new Date().toISOString(),
+    },
+  ],
+  [
+    'cg-in-001',
+    {
+      id: 'profile-003',
+      user_id: 'cg-in-001',
+      org_id: '00000000-0000-0000-0000-000000000002',
+      state_code: 'IN',
+      application_status: 'approved',
+      application_step: 5,
+      personal_info: {
+        first_name: 'David',
+        last_name: 'Miller',
+        email: 'david.miller@example.com',
+        phone: '(317) 555-0122',
+      } as any,
+      positions_applied: ['cna'],
+      availability: {} as any,
+      experience_history: [],
+      professional_licenses: [],
+      references: [],
+      legal_disclosures: {},
+      onboarding_checklist: { ...DEFAULT_ONBOARDING_CHECKLIST },
+      created_at: new Date(Date.now() - 20 * 86400000).toISOString(),
+      updated_at: new Date(Date.now() - 3 * 86400000).toISOString(),
+    },
+  ],
+]);
+
 
 /**
  * Gets or initializes a caregiver profile for a given user.
@@ -218,8 +298,86 @@ import type {
   ComplianceScore,
 } from '@crystal/types';
 
-export const mockCaregiverDocuments: Map<string, CaregiverDocument> = new Map();
+export const mockCaregiverDocuments: Map<string, CaregiverDocument> = new Map([
+  [
+    'doc-001',
+    {
+      id: 'doc-001',
+      caregiver_id: 'cg-ga-001',
+      org_id: '00000000-0000-0000-0000-000000000001',
+      category: 'cpr_first_aid',
+      file_name: 'cpr_certification.pdf',
+      file_storage_path: 'caregivers/cg-ga-001/cpr_certification.pdf',
+      file_size_bytes: 102400,
+      mime_type: 'application/pdf',
+      verification_status: 'approved',
+      expiration_date: '2027-06-15',
+      has_no_expiration: false,
+      is_archived: false,
+      created_at: new Date(Date.now() - 10 * 86400000).toISOString(),
+      updated_at: new Date(Date.now() - 5 * 86400000).toISOString(),
+    },
+  ],
+  [
+    'doc-002',
+    {
+      id: 'doc-002',
+      caregiver_id: 'cg-ga-001',
+      org_id: '00000000-0000-0000-0000-000000000001',
+      category: 'tb_test_screen',
+      file_name: 'tb_screening_report.pdf',
+      file_storage_path: 'caregivers/cg-ga-001/tb_screening_report.pdf',
+      file_size_bytes: 98000,
+      mime_type: 'application/pdf',
+      verification_status: 'approved',
+      expiration_date: '2027-04-10',
+      has_no_expiration: false,
+      is_archived: false,
+      created_at: new Date(Date.now() - 10 * 86400000).toISOString(),
+      updated_at: new Date(Date.now() - 5 * 86400000).toISOString(),
+    },
+  ],
+  [
+    'doc-003',
+    {
+      id: 'doc-003',
+      caregiver_id: 'cg-ga-002',
+      org_id: '00000000-0000-0000-0000-000000000001',
+      category: 'drivers_license',
+      file_name: 'ga_drivers_license.png',
+      file_storage_path: 'caregivers/cg-ga-002/ga_drivers_license.png',
+      file_size_bytes: 204800,
+      mime_type: 'image/png',
+      verification_status: 'under_review',
+      expiration_date: '2028-11-20',
+      has_no_expiration: false,
+      is_archived: false,
+      created_at: new Date(Date.now() - 1 * 86400000).toISOString(),
+      updated_at: new Date().toISOString(),
+    },
+  ],
+  [
+    'doc-004',
+    {
+      id: 'doc-004',
+      caregiver_id: 'cg-in-001',
+      org_id: '00000000-0000-0000-0000-000000000002',
+      category: 'cpr_first_aid',
+      file_name: 'in_cpr_cert.pdf',
+      file_storage_path: 'caregivers/cg-in-001/in_cpr_cert.pdf',
+      file_size_bytes: 110000,
+      mime_type: 'application/pdf',
+      verification_status: 'under_review',
+      expiration_date: '2027-08-01',
+      has_no_expiration: false,
+      is_archived: false,
+      created_at: new Date(Date.now() - 2 * 86400000).toISOString(),
+      updated_at: new Date().toISOString(),
+    },
+  ],
+]);
 export const mockDocumentAuditLogs: DocumentAuditLog[] = [];
+
 
 export const MANDATORY_DOCUMENT_CATEGORIES: DocumentCategoryType[] = [
   'drivers_license',
@@ -1050,6 +1208,263 @@ export function getExpiringAuthorizations(
       summary: computeAuthorizationSummary(auth),
     }));
 }
+
+// ─── Feature Spec 07: Admin Command Center & State Reporting ────────────────
+
+import type {
+  AdminStateKpi,
+  AdminDashboardMetrics,
+  AdminWorkQueueItem,
+  StateAuditReportRecord,
+} from '@crystal/types';
+
+const ADMIN_ORGS = [
+  {
+    id: '00000000-0000-0000-0000-000000000001',
+    state_code: 'GA',
+    name: 'With Open Hands',
+  },
+  {
+    id: '00000000-0000-0000-0000-000000000002',
+    state_code: 'IN',
+    name: 'Cherish Open Arms',
+  },
+];
+
+export function getAdminStateKpis(stateCode?: string): AdminDashboardMetrics {
+  const targetOrgs = ADMIN_ORGS.filter(
+    (o) => !stateCode || stateCode === 'ALL' || o.state_code === stateCode
+  );
+
+  const kpis: AdminStateKpi[] = targetOrgs.map((org) => {
+    // Caregiver profiles for this org
+    const caregivers = Array.from(mockCaregiverProfiles.values()).filter(
+      (cp) => cp.org_id === org.id || cp.state_code === org.state_code
+    );
+    const activeCaregivers = caregivers.filter((cp) => cp.application_status === 'approved').length;
+    const pendingApplications = caregivers.filter((cp) => cp.application_status === 'submitted').length;
+
+    // Documents pending review for this org
+    const pendingDocuments = Array.from(mockCaregiverDocuments.values()).filter(
+      (cd) => cd.org_id === org.id && cd.verification_status === 'under_review'
+    ).length;
+
+    // Active clients for this org
+    const clients = Array.from(mockClients.values()).filter(
+      (c) => c.org_id === org.id || c.state_code === org.state_code
+    );
+    const activeClients = clients.filter((c) => c.status === 'active' || c.status === 'intake_pending').length;
+
+    // Authorizations for this org
+    const auths = Array.from(mockClientAuthorizations.values()).filter((a) => a.org_id === org.id);
+    const expiringAuths = auths.filter((a) => a.status === 'expiring_soon' || a.status === 'exhausted').length;
+    const totalUnitsAuthorized = auths.reduce((acc, a) => acc + a.total_units_authorized, 0);
+    const totalUnitsUsed = auths.reduce((acc, a) => acc + a.total_units_used, 0);
+    const utilizationRate =
+      totalUnitsAuthorized > 0
+        ? Number(((totalUnitsUsed / totalUnitsAuthorized) * 100).toFixed(1))
+        : 0;
+
+    return {
+      org_id: org.id,
+      state_code: org.state_code,
+      organization_name: org.name,
+      active_caregivers_count: activeCaregivers,
+      pending_applications_count: pendingApplications,
+      pending_document_reviews_count: pendingDocuments,
+      active_clients_count: activeClients,
+      expiring_authorizations_count: expiringAuths,
+      total_units_authorized: totalUnitsAuthorized,
+      total_units_used: totalUnitsUsed,
+      utilization_rate_pct: utilizationRate,
+    };
+  });
+
+  const totals = kpis.reduce(
+    (acc, k) => ({
+      active_caregivers: acc.active_caregivers + k.active_caregivers_count,
+      pending_applications: acc.pending_applications + k.pending_applications_count,
+      pending_documents: acc.pending_documents + k.pending_document_reviews_count,
+      active_clients: acc.active_clients + k.active_clients_count,
+      expiring_authorizations: acc.expiring_authorizations + k.expiring_authorizations_count,
+      total_units_auth: acc.total_units_auth + k.total_units_authorized,
+      total_units_used: acc.total_units_used + k.total_units_used,
+      overall_utilization_pct: 0,
+    }),
+    {
+      active_caregivers: 0,
+      pending_applications: 0,
+      pending_documents: 0,
+      active_clients: 0,
+      expiring_authorizations: 0,
+      total_units_auth: 0,
+      total_units_used: 0,
+      overall_utilization_pct: 0,
+    }
+  );
+
+  totals.overall_utilization_pct =
+    totals.total_units_auth > 0
+      ? Number(((totals.total_units_used / totals.total_units_auth) * 100).toFixed(1))
+      : 0;
+
+  return {
+    kpis,
+    totals: {
+      active_caregivers: totals.active_caregivers,
+      pending_applications: totals.pending_applications,
+      pending_documents: totals.pending_documents,
+      active_clients: totals.active_clients,
+      expiring_authorizations: totals.expiring_authorizations,
+      overall_utilization_pct: totals.overall_utilization_pct,
+    },
+  };
+}
+
+export function getAdminWorkQueues(stateCode?: string): AdminWorkQueueItem[] {
+  const items: AdminWorkQueueItem[] = [];
+
+  // 1. Pending Documents Queue
+  Array.from(mockCaregiverDocuments.values())
+    .filter((cd) => {
+      const docState = cd.org_id === '00000000-0000-0000-0000-000000000001' ? 'GA' : 'IN';
+      return (
+        (!stateCode || stateCode === 'ALL' || docState === stateCode) &&
+        cd.verification_status === 'under_review'
+      );
+    })
+    .forEach((cd) => {
+      const docState = cd.org_id === '00000000-0000-0000-0000-000000000001' ? 'GA' : 'IN';
+      items.push({
+        id: cd.id,
+        type: 'document_review',
+        title: `Verify ${cd.category.toUpperCase().replace('_', ' ')}`,
+        subtitle: `Caregiver ID: ${cd.caregiver_id} • File: ${cd.file_name}`,
+        state_code: docState,
+        org_id: cd.org_id,
+        urgency: cd.expiration_date ? 'high' : 'medium',
+        action_url: `/apply/documents`,
+        created_at: cd.created_at,
+      });
+    });
+
+  // 2. Pending Application Submissions
+  Array.from(mockCaregiverProfiles.values())
+    .filter(
+      (cp) =>
+        (!stateCode || stateCode === 'ALL' || cp.state_code === stateCode) &&
+        cp.application_status === 'submitted'
+    )
+    .forEach((cp) => {
+      const name = cp.personal_info
+        ? `${cp.personal_info.first_name} ${cp.personal_info.last_name}`
+        : 'Applicant';
+      items.push({
+        id: cp.id,
+        type: 'application_review',
+        title: `Review Onboarding Application: ${name}`,
+        subtitle: `Positions: ${(cp.positions_applied || []).join(', ') || 'Attendant'} • State: ${cp.state_code}`,
+        state_code: cp.state_code,
+        org_id: cp.org_id,
+        urgency: 'high',
+        action_url: `/apply/status`,
+        created_at: cp.created_at,
+      });
+    });
+
+  // 3. Expiring Authorizations
+  Array.from(mockClientAuthorizations.values())
+    .filter((ca) => ca.status === 'expiring_soon' || ca.status === 'exhausted')
+    .forEach((ca) => {
+      const stateCodeForAuth = ca.org_id === '00000000-0000-0000-0000-000000000001' ? 'GA' : 'IN';
+      if (stateCode && stateCode !== 'ALL' && stateCode !== stateCodeForAuth) return;
+
+      const remainingUnits = Math.max(0, ca.total_units_authorized - ca.total_units_used);
+      items.push({
+        id: ca.id,
+        type: 'expiring_authorization',
+        title: `Renew Prior Auth: ${ca.authorization_number} (${ca.procedure_code})`,
+        subtitle: `${ca.payer_name} • ${remainingUnits} units remaining • Ends: ${ca.end_date}`,
+        state_code: stateCodeForAuth,
+        org_id: ca.org_id,
+        urgency: remainingUnits <= 20 ? 'high' : 'medium',
+        action_url: `/authorizations`,
+        created_at: ca.created_at,
+      });
+    });
+
+  // Sort high urgency first
+  const urgencyOrder = { high: 0, medium: 1, low: 2 };
+  return items.sort((a, b) => urgencyOrder[a.urgency] - urgencyOrder[b.urgency]);
+}
+
+export function generateStateAuditReport(stateCode?: string): StateAuditReportRecord[] {
+  const caregivers = Array.from(mockCaregiverProfiles.values()).filter(
+    (cp) => !stateCode || stateCode === 'ALL' || cp.state_code === stateCode
+  );
+
+  return caregivers.map((cp) => {
+    const docs = Array.from(mockCaregiverDocuments.values()).filter((d) => d.caregiver_id === cp.user_id);
+    const score = calculateComplianceScore(cp.user_id, docs);
+
+    const cpr = docs.find((d) => d.category === 'cpr_first_aid');
+    const tb = docs.find((d) => d.category === 'tb_test_screen');
+    const cna = docs.find((d) => (d.category as string) === 'cna_license');
+
+
+    const progressList = Array.from(mockCaregiverTrainingProgress.values()).filter(
+      (p) => p.caregiver_id === cp.user_id && p.passed
+    );
+
+    const fullName = cp.personal_info
+      ? `${cp.personal_info.first_name} ${cp.personal_info.last_name}`
+      : 'Caregiver';
+
+    return {
+      caregiver_id: cp.user_id,
+      full_name: fullName,
+      state_code: cp.state_code,
+      application_status: cp.application_status,
+      compliance_score_pct: score.score_percentage,
+      cpr_status: cpr ? cpr.verification_status : 'missing',
+      tb_screen_status: tb ? tb.verification_status : 'missing',
+      cna_license_status: cna ? cna.verification_status : 'n/a',
+      completed_training_modules_count: progressList.length,
+      last_activity_date: cp.updated_at.split('T')[0],
+    };
+  });
+}
+
+export function convertAuditReportToCsv(records: StateAuditReportRecord[]): string {
+  const headers = [
+    'Caregiver ID',
+    'Full Name',
+    'State',
+    'Application Status',
+    'Compliance Score %',
+    'CPR Certification',
+    'TB Screening',
+    'CNA License',
+    'Completed In-Service Modules',
+    'Last Activity Date',
+  ];
+
+  const rows = records.map((r) => [
+    `"${r.caregiver_id}"`,
+    `"${r.full_name.replace(/"/g, '""')}"`,
+    `"${r.state_code}"`,
+    `"${r.application_status}"`,
+    `${r.compliance_score_pct}`,
+    `"${r.cpr_status}"`,
+    `"${r.tb_screen_status}"`,
+    `"${r.cna_license_status}"`,
+    `${r.completed_training_modules_count}`,
+    `"${r.last_activity_date}"`,
+  ]);
+
+  return [headers.join(','), ...rows.map((row) => row.join(','))].join('\r\n');
+}
+
 
 
 

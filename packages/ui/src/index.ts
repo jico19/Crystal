@@ -45,6 +45,9 @@ export { CreateAuthorizationModal } from './components/CreateAuthorizationModal'
 export type { CreateAuthorizationModalProps } from './components/CreateAuthorizationModal';
 export { ClientAuthorizationsList } from './components/ClientAuthorizationsList';
 export type { ClientAuthorizationsListProps } from './components/ClientAuthorizationsList';
+export { AdminCommandCenter } from './components/AdminCommandCenter';
+export type { AdminCommandCenterProps } from './components/AdminCommandCenter';
+
 
 
 

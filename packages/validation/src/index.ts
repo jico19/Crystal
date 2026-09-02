@@ -512,5 +512,33 @@ export const LogUtilizationSchema = z.object({
 
 export type LogUtilizationPayload = z.infer<typeof LogUtilizationSchema>;
 
+// ============================================================================
+// Feature Spec 07: Admin Command Center & State Reporting
+// ============================================================================
+
+export const AdminKpiResponseSchema = z.object({
+  org_id: z.string(),
+  state_code: z.enum(['GA', 'IN', 'FL']),
+  organization_name: z.string(),
+  active_caregivers_count: z.number().int().nonnegative(),
+  pending_applications_count: z.number().int().nonnegative(),
+  pending_document_reviews_count: z.number().int().nonnegative(),
+  active_clients_count: z.number().int().nonnegative(),
+  expiring_authorizations_count: z.number().int().nonnegative(),
+  total_units_authorized: z.number().nonnegative(),
+  total_units_used: z.number().nonnegative(),
+  utilization_rate_pct: z.number().nonnegative(),
+});
+
+export type AdminKpiResponse = z.infer<typeof AdminKpiResponseSchema>;
+
+export const AdminDashboardFilterSchema = z.object({
+  state_code: z.enum(['GA', 'IN', 'ALL']).optional(),
+  format: z.enum(['json', 'csv']).optional(),
+});
+
+export type AdminDashboardFilter = z.infer<typeof AdminDashboardFilterSchema>;
+
+
 
 

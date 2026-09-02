@@ -659,6 +659,62 @@ export interface AuthorizationUtilizationSummary {
   status: AuthStatusType;
 }
 
+// ============================================================================
+// Feature Spec 07: Admin Command Center & State Reporting
+// ============================================================================
+
+export interface AdminStateKpi {
+  org_id: string;
+  state_code: string;
+  organization_name: string;
+  active_caregivers_count: number;
+  pending_applications_count: number;
+  pending_document_reviews_count: number;
+  active_clients_count: number;
+  expiring_authorizations_count: number;
+  total_units_authorized: number;
+  total_units_used: number;
+  utilization_rate_pct: number;
+}
+
+export interface AdminDashboardMetrics {
+  kpis: AdminStateKpi[];
+  totals: {
+    active_caregivers: number;
+    pending_applications: number;
+    pending_documents: number;
+    active_clients: number;
+    expiring_authorizations: number;
+    overall_utilization_pct: number;
+  };
+}
+
+export interface AdminWorkQueueItem {
+  id: string;
+  type: 'document_review' | 'application_review' | 'expiring_authorization';
+  title: string;
+  subtitle: string;
+  state_code: string;
+  org_id: string;
+  urgency: 'low' | 'medium' | 'high';
+  action_url: string;
+  created_at: string;
+}
+
+export interface StateAuditReportRecord {
+  caregiver_id: string;
+  full_name: string;
+  state_code: string;
+  application_status: string;
+  compliance_score_pct: number;
+  cpr_status: string;
+  tb_screen_status: string;
+  cna_license_status: string;
+  completed_training_modules_count: number;
+  last_activity_date: string;
+}
+
+
 
 
 

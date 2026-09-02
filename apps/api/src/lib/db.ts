@@ -35,6 +35,10 @@ import type {
   LogUtilizationInput,
   AuthorizationUtilizationSummary,
   AuthStatusType,
+  AdminStateKpi,
+  AdminDashboardMetrics,
+  AdminWorkQueueItem,
+  StateAuditReportRecord,
 } from '@crystal/types';
 import { computeDocumentHash, sanitizePersonalInfoSSN } from './security';
 import {
@@ -73,6 +77,10 @@ import {
   logAuthorizationUtilization as storeLogUtilization,
   computeAuthorizationSummary as storeComputeAuthSummary,
   getExpiringAuthorizations as storeGetExpiringAuthorizations,
+  getAdminStateKpis as storeGetAdminStateKpis,
+  getAdminWorkQueues as storeGetAdminWorkQueues,
+  generateStateAuditReport as storeGenerateStateAuditReport,
+  convertAuditReportToCsv as storeConvertAuditReportToCsv,
 } from './store';
 
 // ─── Singleton Database Instance ─────────────────────────────────────────────
@@ -2069,6 +2077,112 @@ export async function getAuthorizationSummaryDb(
   if (!auth) return null;
   return storeComputeAuthSummary(auth);
 }
+
+// ─── Feature Spec 07: Admin Dashboard Database Methods ──────────────────────
+
+export async function getAdminDashboardMetricsDb(
+  stateCode?: string
+): Promise<AdminDashboardMetrics> {
+  // PGlite supports full in-memory SQL views, or fallback to memory store
+  try {
+    await initDb();
+    const db = getDb();
+    let query = `
+      SELECT
+        o.id AS org_id,
+        o.state_code,
+        o.name AS organization_name,
+        COUNT(DISTINCT cp.id) FILTER (WHERE cp.application_status = 'approved') AS active_caregivers_count,
+        COUNT(DISTINCT cp.id) FILTER (WHERE cp.application_status = 'submitted') AS pending_applications_count,
+        COUNT(DISTINCT cd.id) FILTER (WHERE cd.verification_status = 'under_review') AS pending_document_reviews_count,
+        COUNT(DISTINCT c.id) FILTER (WHERE c.status = 'active' OR c.status = 'intake_pending') AS active_clients_count,
+        COUNT(DISTINCT ca.id) FILTER (WHERE ca.status = 'expiring_soon' OR ca.status = 'exhausted') AS expiring_authorizations_count,
+        COALESCE(SUM(ca.total_units_authorized), 0) AS total_units_authorized,
+        COALESCE(SUM(ca.total_units_used), 0) AS total_units_used
+      FROM organizations o
+      LEFT JOIN caregiver_profiles cp ON cp.org_id = o.id
+      LEFT JOIN caregiver_documents cd ON cd.org_id = o.id
+      LEFT JOIN clients c ON c.org_id = o.id
+      LEFT JOIN client_authorizations ca ON ca.org_id = o.id
+      WHERE ($1::text IS NULL OR $1::text = 'ALL' OR o.state_code = $1::text)
+      GROUP BY o.id, o.state_code, o.name
+      ORDER BY o.state_code ASC
+    `;
+    const res = await db.query<any>(query, [stateCode || null]);
+    if (res.rows && res.rows.length > 0) {
+      const kpis: AdminStateKpi[] = res.rows.map((r) => {
+        const totalAuth = Number(r.total_units_authorized || 0);
+        const totalUsed = Number(r.total_units_used || 0);
+        return {
+          org_id: r.org_id,
+          state_code: r.state_code,
+          organization_name: r.organization_name,
+          active_caregivers_count: Number(r.active_caregivers_count || 0),
+          pending_applications_count: Number(r.pending_applications_count || 0),
+          pending_document_reviews_count: Number(r.pending_document_reviews_count || 0),
+          active_clients_count: Number(r.active_clients_count || 0),
+          expiring_authorizations_count: Number(r.expiring_authorizations_count || 0),
+          total_units_authorized: totalAuth,
+          total_units_used: totalUsed,
+          utilization_rate_pct: totalAuth > 0 ? Number(((totalUsed / totalAuth) * 100).toFixed(1)) : 0,
+        };
+      });
+
+      const totals = kpis.reduce(
+        (acc, k) => ({
+          active_caregivers: acc.active_caregivers + k.active_caregivers_count,
+          pending_applications: acc.pending_applications + k.pending_applications_count,
+          pending_documents: acc.pending_documents + k.pending_document_reviews_count,
+          active_clients: acc.active_clients + k.active_clients_count,
+          expiring_authorizations: acc.expiring_authorizations + k.expiring_authorizations_count,
+          total_units_auth: acc.total_units_auth + k.total_units_authorized,
+          total_units_used: acc.total_units_used + k.total_units_used,
+          overall_utilization_pct: 0,
+        }),
+        {
+          active_caregivers: 0,
+          pending_applications: 0,
+          pending_documents: 0,
+          active_clients: 0,
+          expiring_authorizations: 0,
+          total_units_auth: 0,
+          total_units_used: 0,
+          overall_utilization_pct: 0,
+        }
+      );
+
+      totals.overall_utilization_pct =
+        totals.total_units_auth > 0
+          ? Number(((totals.total_units_used / totals.total_units_auth) * 100).toFixed(1))
+          : 0;
+
+      return { kpis, totals };
+    }
+  } catch (err) {
+    console.warn('[getAdminDashboardMetricsDb] Falling back to memory store:', err);
+  }
+
+  return storeGetAdminStateKpis(stateCode);
+}
+
+export async function getAdminWorkQueuesDb(
+  stateCode?: string
+): Promise<AdminWorkQueueItem[]> {
+  return storeGetAdminWorkQueues(stateCode);
+}
+
+export async function generateStateAuditReportDb(
+  stateCode?: string
+): Promise<StateAuditReportRecord[]> {
+  return storeGenerateStateAuditReport(stateCode);
+}
+
+export function convertAuditReportToCsvDb(
+  records: StateAuditReportRecord[]
+): string {
+  return storeConvertAuditReportToCsv(records);
+}
+
 
 
 
