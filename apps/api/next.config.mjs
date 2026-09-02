@@ -2,7 +2,7 @@
 const nextConfig = {
   reactStrictMode: true,
   experimental: {
-    serverComponentsExternalPackages: ['@electric-sql/pglite'],
+    serverComponentsExternalPackages: ['@electric-sql/pglite', 'zod'],
   },
   transpilePackages: ['@crystal/types', '@crystal/validation', '@crystal/ui'],
   async headers() {

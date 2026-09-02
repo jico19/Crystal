@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import {
   createClientAuthorizationDb,
   getClientAuthorizationsDb,
+  getExpiringAuthorizationsDb,
 } from '@/lib/db';
 import { storeComputeAuthSummary } from '@/lib/store';
 import { ClientAuthorizationSchema } from '@crystal/validation';
@@ -12,6 +13,7 @@ export const dynamic = 'force-dynamic';
 /**
  * GET /api/v1/authorizations
  * Lists client prior authorizations filtered by client_id, org_id, or status.
+ * Also supports ?expiring=true&days=60 for renewal alerts.
  */
 export async function GET(request: NextRequest) {
   try {
@@ -19,6 +21,18 @@ export async function GET(request: NextRequest) {
     const clientId = searchParams.get('client_id') || undefined;
     const orgId = searchParams.get('org_id') || request.headers.get('x-org-id') || undefined;
     const status = (searchParams.get('status') as AuthStatusType) || undefined;
+    const isExpiring = searchParams.get('expiring') === 'true';
+
+    if (isExpiring) {
+      const days = searchParams.get('days') ? parseInt(searchParams.get('days')!, 10) : 60;
+      const expiring = await getExpiringAuthorizationsDb(orgId, days);
+      return NextResponse.json({
+        success: true,
+        authorizations: expiring,
+        total_count: expiring.length,
+        days_threshold: days,
+      });
+    }
 
     const authorizations = await getClientAuthorizationsDb(clientId, orgId, status);
 
