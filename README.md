@@ -108,15 +108,47 @@ Open [http://localhost:3000](http://localhost:3000) in your browser.
 * **Theme:** Deep Teal (`#0f766e`) & Gold
 * **License:** `GA-HCPR-049281`
 * **Contact:** `http://localhost:3000/ga/contact`
+* **Caregiver Application:** `http://localhost:3000/ga/apply`
+* **In-Service Training Portal:** `http://localhost:3000/ga/training`
+* **Client Intake Admission:** `http://localhost:3000/ga/intake`
 
 ### 3. Indiana State Site (*Cherish Open Arms*)
 * **Route:** `http://localhost:3000/in`
 * **Theme:** Deep Navy (`#1e3a8a`) & Coral
 * **License:** `IN-FSSA-982104`
 * **Contact:** `http://localhost:3000/in/contact`
+* **Caregiver Application:** `http://localhost:3000/in/apply`
+* **In-Service Training Portal:** `http://localhost:3000/in/training`
+* **Client Intake Admission:** `http://localhost:3000/in/intake`
 
 ---
 
-## Database Migrations & RLS
-PostgreSQL / Supabase migration files are located in `supabase/migrations/`:
-* `20260831000001_multi_state_routing.sql`: Organizations, public inquiries, and tenant RLS policies.
+## Implemented Platform Modules
+
+| Feature Spec | Module Name | Status | Key Highlights |
+| :--- | :--- | :---: | :--- |
+| **Spec 01** | Multi-State Website & Routing | ✅ Completed | Tenant isolation, brand token switching, public lead capture |
+| **Spec 02** | Caregiver Onboarding Funnel | ✅ Completed | 5-step draft auto-saving, age/SSN validations, onboarding tracker |
+| **Spec 03** | Document & Credential Tracking | ✅ Completed | OCR metadata extraction, 30/60/90-day expiration indexing, compliance score |
+| **Spec 04** | In-Service Training & CEU Portal | ✅ Completed | Anti-skipping video tracking, 80% passing quizzes, SHA-256 certificate issuance |
+| **Spec 05** | Client Intake & Document Vault | ✅ Completed | Demographics, emergency contacts/POA, ADL/IADL care needs, physician orders (485) |
+| **Spec 09** | E-Signature Workflow | ✅ Completed | Cryptographic SHA-256 envelopes, audit trail, consent packets |
+
+---
+
+## Automated Test Suite (Vitest + PGlite)
+
+All 9 test suites (131 tests) pass locally using embedded WebAssembly PostgreSQL (PGlite):
+```bash
+npm test
+```
+* `tests/caregiver-validation.test.ts` (38 tests)
+* `tests/caregiver-api.test.ts` (24 tests)
+* `tests/esignature.test.ts` (20 tests)
+* `tests/document-tracking.test.ts` (13 tests)
+* `tests/pglite-db.test.ts` (12 tests)
+* `tests/training-portal.test.ts` (10 tests)
+* `tests/client-intake.test.ts` (6 tests)
+* `tests/validation.test.ts` (5 tests)
+* `tests/cors.test.ts` (3 tests)
+

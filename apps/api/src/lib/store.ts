@@ -113,7 +113,7 @@ export function updateCaregiverProfile(
 // ─── E-Signature Envelope Store (Feature Spec 09) ───────────────────────────
 
 import type { SignatureEnvelope, SignerRole } from '@crystal/types';
-import { computeDocumentHash } from './security';
+import { computeDocumentHash, computeCertificateHash } from './security';
 
 /** In-memory signature envelopes store for local dev & testing */
 export const mockSignatureEnvelopes: Map<string, SignatureEnvelope> = new Map();
@@ -312,5 +312,541 @@ export function createDocumentAuditLog(
   mockDocumentAuditLogs.push(log);
   return log;
 }
+
+// ─── In-Service Training & Continuing Education Store (Feature Spec 04) ──────
+
+import type {
+  TrainingModule,
+  CaregiverTrainingProgress,
+  QuizResultResponse,
+  TrainingComplianceSummary,
+  ClientProfile,
+  ClientDocument,
+  ClientIntakeInput,
+} from '@crystal/types';
+
+export const mockTrainingModules: TrainingModule[] = [
+  {
+    id: 'mod-001',
+    state_code: 'ALL',
+    title: 'HIPAA Compliance & Client Privacy in Home Care',
+    description: 'Mandatory annual training covering Protected Health Information (PHI), minimum necessary disclosures, digital device security, and breach reporting protocols.',
+    category: 'hipaa',
+    video_url: 'https://stream.crystalhomecare.com/lessons/hipaa-101.m3u8',
+    video_duration_seconds: 900,
+    required_hours: 1.5,
+    passing_score_percentage: 80,
+    is_mandatory: true,
+    is_active: true,
+    created_at: new Date(Date.now() - 86400000 * 30).toISOString(),
+    quiz_questions: [
+      {
+        id: 'q1',
+        question: 'Under HIPAA, which of the following is considered Protected Health Information (PHI)?',
+        options: [
+          'Client name, medical conditions, and residential address',
+          'The agency\'s public website address',
+          'The caregiver\'s personal lunch schedule',
+          'General state labor laws',
+        ],
+        correct_index: 0,
+      },
+      {
+        id: 'q2',
+        question: 'When discussing a client\'s care needs with family members, what must be verified first?',
+        options: [
+          'Whether the family member paid for the service directly',
+          'Client consent or valid Power of Attorney (POA) on file',
+          'Caregiver\'s personal relationship with the family',
+          'Only the client\'s age',
+        ],
+        correct_index: 1,
+      },
+      {
+        id: 'q3',
+        question: 'What is the appropriate protocol if you suspect a paper document containing client medical history was lost?',
+        options: [
+          'Wait 30 days to see if someone returns it',
+          'Immediately notify the agency Compliance Officer or Administrator',
+          'Create a duplicate and do not report it',
+          'Post an announcement on social media',
+        ],
+        correct_index: 1,
+      },
+    ],
+  },
+  {
+    id: 'mod-002',
+    state_code: 'ALL',
+    title: 'Infection Prevention & Bloodborne Pathogens',
+    description: 'Standard precautions, proper PPE donning and doffing, hand hygiene, and sanitization protocols in private home care environments.',
+    category: 'infection_control',
+    video_url: 'https://stream.crystalhomecare.com/lessons/infection-control-102.m3u8',
+    video_duration_seconds: 720,
+    required_hours: 1.5,
+    passing_score_percentage: 80,
+    is_mandatory: true,
+    is_active: true,
+    created_at: new Date(Date.now() - 86400000 * 30).toISOString(),
+    quiz_questions: [
+      {
+        id: 'q1',
+        question: 'What is the single most effective action to prevent the transmission of infection in home care?',
+        options: [
+          'Wearing gloves at all times without washing hands',
+          'Proper hand hygiene using soap and water for at least 20 seconds',
+          'Opening windows in the client home',
+          'Spraying air freshener',
+        ],
+        correct_index: 1,
+      },
+      {
+        id: 'q2',
+        question: 'When should personal protective equipment (PPE) like disposable gloves be removed?',
+        options: [
+          'Immediately after finishing a care task and before touching clean surfaces',
+          'At the end of the shift only',
+          'After driving to the next client',
+          'Gloves can be washed and reused',
+        ],
+        correct_index: 0,
+      },
+    ],
+  },
+  {
+    id: 'mod-003',
+    state_code: 'ALL',
+    title: 'Elder Abuse Prevention, Neglect & Mandatory Reporting',
+    description: 'Identifying physical, emotional, and financial elder abuse, recognizing signs of caregiver neglect, and state mandatory reporting timelines in Georgia and Indiana.',
+    category: 'elder_abuse',
+    video_url: 'https://stream.crystalhomecare.com/lessons/elder-abuse-103.m3u8',
+    video_duration_seconds: 600,
+    required_hours: 1.0,
+    passing_score_percentage: 80,
+    is_mandatory: true,
+    is_active: true,
+    created_at: new Date(Date.now() - 86400000 * 30).toISOString(),
+    quiz_questions: [
+      {
+        id: 'q1',
+        question: 'As a home care employee in GA/IN, if you observe unexplained bruises or sudden withdrawals from a vulnerable adult\'s account, what is your legal duty?',
+        options: [
+          'Investigate the family independently',
+          'You are a mandatory reporter and must report suspected abuse immediately to Adult Protective Services (APS)',
+          'Wait until the client formally complains',
+          'Only discuss it if asked by a supervisor',
+        ],
+        correct_index: 1,
+      },
+    ],
+  },
+  {
+    id: 'mod-004',
+    state_code: 'GA',
+    title: 'Georgia DCH Healthcare Facility Regulation & Client Rights',
+    description: 'Georgia-specific Department of Community Health (DCH) Chapter 111-8-65 standards for Private Home Care Providers and client bill of rights.',
+    category: 'client_rights',
+    video_url: 'https://stream.crystalhomecare.com/lessons/ga-dch-rights.m3u8',
+    video_duration_seconds: 600,
+    required_hours: 1.0,
+    passing_score_percentage: 80,
+    is_mandatory: true,
+    is_active: true,
+    created_at: new Date(Date.now() - 86400000 * 20).toISOString(),
+    quiz_questions: [
+      {
+        id: 'q1',
+        question: 'Under Georgia DCH rules, clients have the right to:',
+        options: [
+          'Be treated with dignity, participate in their care plan, and lodge grievances without retaliation',
+          'Change caregiver pay rates directly',
+          'Refuse to sign mandatory state consent forms',
+          'Dictate overtime schedules for agency staff',
+        ],
+        correct_index: 0,
+      },
+    ],
+  },
+  {
+    id: 'mod-005',
+    state_code: 'IN',
+    title: 'Indiana FSSA Standards & Attendant Care Guidelines',
+    description: 'Indiana Family and Social Services Administration (FSSA) home and community-based services rules and documentation standards.',
+    category: 'client_rights',
+    video_url: 'https://stream.crystalhomecare.com/lessons/in-fssa-standards.m3u8',
+    video_duration_seconds: 600,
+    required_hours: 1.0,
+    passing_score_percentage: 80,
+    is_mandatory: true,
+    is_active: true,
+    created_at: new Date(Date.now() - 86400000 * 20).toISOString(),
+    quiz_questions: [
+      {
+        id: 'q1',
+        question: 'Under Indiana Medicaid waiver rules, service times and tasks must match:',
+        options: [
+          'The authorized Individualized Service Plan (ISP) agreed with the Case Manager',
+          'Whatever hours the client requests verbally on that day',
+          'Caregiver personal preference',
+          'Standard 40-hour weekly templates regardless of assessment',
+        ],
+        correct_index: 0,
+      },
+    ],
+  },
+];
+
+export const mockCaregiverTrainingProgress = new Map<string, CaregiverTrainingProgress>();
+
+export function getTrainingProgressKey(caregiverId: string, moduleId: string): string {
+  return `${caregiverId}::${moduleId}`;
+}
+
+export function getTrainingModules(stateCode?: string): TrainingModule[] {
+  return mockTrainingModules.filter((mod) => {
+    if (!mod.is_active) return false;
+    if (!stateCode || stateCode === 'ALL') return true;
+    return mod.state_code === 'ALL' || mod.state_code === stateCode;
+  });
+}
+
+export function getTrainingModuleById(id: string): TrainingModule | undefined {
+  return mockTrainingModules.find((m) => m.id === id);
+}
+
+export function getCaregiverTrainingProgress(caregiverId: string): CaregiverTrainingProgress[] {
+  return Array.from(mockCaregiverTrainingProgress.values()).filter(
+    (p) => p.caregiver_id === caregiverId
+  );
+}
+
+export function updateTrainingProgress(
+  caregiverId: string,
+  moduleId: string,
+  watchSeconds: number,
+  totalDurationSeconds: number
+): CaregiverTrainingProgress {
+  const key = getTrainingProgressKey(caregiverId, moduleId);
+  const existing = mockCaregiverTrainingProgress.get(key);
+  const now = new Date().toISOString();
+
+  const progressPct = Math.min(100, Math.round((watchSeconds / Math.max(1, totalDurationSeconds)) * 100));
+  const isCompleted = progressPct >= 90;
+
+  const record: CaregiverTrainingProgress = {
+    id: existing?.id || `prog-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+    caregiver_id: caregiverId,
+    module_id: moduleId,
+    watch_progress_percentage: Math.max(existing?.watch_progress_percentage || 0, progressPct),
+    video_completed: existing?.video_completed || isCompleted,
+    quiz_attempts: existing?.quiz_attempts || 0,
+    quiz_score_percentage: existing?.quiz_score_percentage ?? null,
+    passed: existing?.passed || false,
+    certificate_url: existing?.certificate_url || null,
+    certificate_hash: existing?.certificate_hash || null,
+    completed_at: existing?.completed_at || null,
+    created_at: existing?.created_at || now,
+    updated_at: now,
+  };
+
+  mockCaregiverTrainingProgress.set(key, record);
+  return record;
+}
+
+export function submitTrainingQuiz(
+  caregiverId: string,
+  moduleId: string,
+  answers: Array<{ question_id: string; selected_index: number }>
+): QuizResultResponse {
+  const mod = getTrainingModuleById(moduleId);
+  if (!mod) {
+    throw new Error(`Training module ${moduleId} not found`);
+  }
+
+  const key = getTrainingProgressKey(caregiverId, moduleId);
+  const existing = mockCaregiverTrainingProgress.get(key);
+  const attempts = (existing?.quiz_attempts || 0) + 1;
+
+  let correctCount = 0;
+  for (const q of mod.quiz_questions) {
+    const ans = answers.find((a) => a.question_id === q.id);
+    if (ans && ans.selected_index === q.correct_index) {
+      correctCount++;
+    }
+  }
+
+  const totalQuestions = mod.quiz_questions.length;
+  const scorePercentage = Math.round((correctCount / Math.max(1, totalQuestions)) * 100);
+  const passed = scorePercentage >= mod.passing_score_percentage;
+  const now = new Date().toISOString();
+
+  let certHash: string | undefined;
+  let certUrl: string | undefined;
+
+  if (passed) {
+    certHash = computeCertificateHash({
+      caregiver_id: caregiverId,
+      module_id: moduleId,
+      score: scorePercentage,
+      passed_at: now,
+    });
+    certUrl = `/api/v1/training/certificates/${certHash}`;
+  }
+
+  const updatedRecord: CaregiverTrainingProgress = {
+    id: existing?.id || `prog-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+    caregiver_id: caregiverId,
+    module_id: moduleId,
+    watch_progress_percentage: Math.max(existing?.watch_progress_percentage || 0, 100),
+    video_completed: true,
+    quiz_attempts: attempts,
+    quiz_score_percentage: scorePercentage,
+    passed,
+    certificate_url: certUrl || existing?.certificate_url || null,
+    certificate_hash: certHash || existing?.certificate_hash || null,
+    completed_at: passed ? (existing?.completed_at || now) : existing?.completed_at || null,
+    created_at: existing?.created_at || now,
+    updated_at: now,
+  };
+
+  mockCaregiverTrainingProgress.set(key, updatedRecord);
+
+  const profile = mockCaregiverProfiles.get(caregiverId);
+  if (profile && passed) {
+    const mandatoryMods = mockTrainingModules.filter(
+      (m) => m.is_mandatory && (m.state_code === 'ALL' || m.state_code === profile.state_code)
+    );
+    const allProgress = getCaregiverTrainingProgress(caregiverId);
+    const allMandatoryPassed = mandatoryMods.every((m) =>
+      allProgress.some((p) => p.module_id === m.id && p.passed)
+    );
+    if (allMandatoryPassed) {
+      profile.onboarding_checklist.in_service_orientation = 'verified';
+    }
+  }
+
+  return {
+    success: true,
+    module_id: moduleId,
+    score_percentage: scorePercentage,
+    passing_score: mod.passing_score_percentage,
+    passed,
+    total_questions: totalQuestions,
+    correct_count: correctCount,
+    certificate_url: certUrl,
+    certificate_hash: certHash,
+    message: passed
+      ? `Congratulations! You passed with ${scorePercentage}%. Certificate issued.`
+      : `You scored ${scorePercentage}%. A minimum of ${mod.passing_score_percentage}% is required. Please review and try again.`,
+  };
+}
+
+export function getTrainingComplianceSummary(caregiverId: string, stateCode: string = 'GA'): TrainingComplianceSummary {
+  const mandatoryMods = mockTrainingModules.filter(
+    (m) => m.is_mandatory && (m.state_code === 'ALL' || m.state_code === stateCode)
+  );
+  const progressList = getCaregiverTrainingProgress(caregiverId);
+  const passedProgress = progressList.filter((p) => p.passed);
+
+  const completedModuleIds = new Set(passedProgress.map((p) => p.module_id));
+  const completedCount = mandatoryMods.filter((m) => completedModuleIds.has(m.id)).length;
+
+  let earnedHours = 0;
+  for (const p of passedProgress) {
+    const mod = mockTrainingModules.find((m) => m.id === p.module_id);
+    if (mod) {
+      earnedHours += Number(mod.required_hours);
+    }
+  }
+
+  const requiredAnnualHours = 12.0;
+  const compliancePct = Math.min(100, Math.round((earnedHours / requiredAnnualHours) * 100));
+
+  return {
+    caregiver_id: caregiverId,
+    completed_modules_count: completedCount,
+    total_mandatory_modules: mandatoryMods.length,
+    total_earned_hours: Number(earnedHours.toFixed(1)),
+    required_annual_hours: requiredAnnualHours,
+    compliance_percentage: compliancePct,
+    is_compliant: completedCount >= mandatoryMods.length && earnedHours >= requiredAnnualHours,
+  };
+}
+
+// ─── Client Intake & Document Management Store (Feature Spec 05) ──────────────
+
+export const mockClients = new Map<string, ClientProfile>([
+  [
+    'cli-001',
+    {
+      id: 'cli-001',
+      org_id: '00000000-0000-0000-0000-000000000001',
+      state_code: 'GA',
+      status: 'active',
+      first_name: 'Arthur',
+      last_name: 'Pendelton',
+      dob: '1945-04-12',
+      gender: 'Male',
+      ssn_last4: '8831',
+      medicaid_id: 'GA-MED-99281',
+      primary_phone: '(404) 555-1945',
+      service_address: {
+        street: '1420 Piedmont Ave NE',
+        apt: 'Apt 4B',
+        city: 'Atlanta',
+        state: 'GA',
+        zip: '30309',
+        gate_code: '#4419',
+      },
+      emergency_contacts: [
+        {
+          name: 'Sarah Pendelton Miller',
+          relationship: 'Daughter',
+          phone: '(404) 555-9012',
+          is_primary: true,
+          has_poa: true,
+        },
+      ],
+      primary_physician: {
+        name: 'Dr. Robert Chen, MD',
+        practice: 'Emory Geriatric Care',
+        phone: '(404) 555-7000',
+        fax: '(404) 555-7001',
+        npi: '1234567890',
+      },
+      care_needs: {
+        adls: ['bathing', 'dressing', 'transferring'],
+        iadls: ['meal_prep', 'medication_reminders', 'light_housekeeping'],
+        allergies: ['Penicillin', 'Sulfa drugs'],
+        diagnoses: ['Hypertension', 'Mild Cognitive Impairment (MCI)', 'Osteoarthritis'],
+        mobility_notes: 'Uses walker for ambulation; standby assistance required for shower.',
+      },
+      primary_payer: 'medicaid_waiver',
+      payer_details: {
+        policy_number: 'CCSP-8831-GA',
+        case_manager_name: 'Brenda Washington, LCSW',
+        case_manager_phone: '(404) 555-3399',
+      },
+      created_at: new Date(Date.now() - 86400000 * 60).toISOString(),
+      updated_at: new Date(Date.now() - 86400000 * 5).toISOString(),
+    },
+  ],
+  [
+    'cli-002',
+    {
+      id: 'cli-002',
+      org_id: '00000000-0000-0000-0000-000000000002',
+      state_code: 'IN',
+      status: 'intake_pending',
+      first_name: 'Evelyn',
+      last_name: 'Harper',
+      dob: '1952-11-03',
+      gender: 'Female',
+      ssn_last4: '4192',
+      medicaid_id: 'IN-MED-77182',
+      primary_phone: '(317) 555-6671',
+      service_address: {
+        street: '884 Meridian St',
+        city: 'Indianapolis',
+        state: 'IN',
+        zip: '46204',
+      },
+      emergency_contacts: [
+        {
+          name: 'James Harper',
+          relationship: 'Son',
+          phone: '(317) 555-8820',
+          is_primary: true,
+          has_poa: false,
+        },
+      ],
+      primary_physician: {
+        name: 'Dr. Laura Miller',
+        practice: 'IU Health Physicians',
+        phone: '(317) 555-4000',
+      },
+      care_needs: {
+        adls: ['bathing', 'continence'],
+        iadls: ['meal_prep', 'shopping'],
+        allergies: ['Latex'],
+        diagnoses: ['Type 2 Diabetes', 'Diabetic Neuropathy'],
+      },
+      primary_payer: 'private_pay',
+      created_at: new Date(Date.now() - 86400000 * 3).toISOString(),
+      updated_at: new Date(Date.now() - 86400000 * 1).toISOString(),
+    },
+  ],
+]);
+
+export const mockClientDocuments: ClientDocument[] = [
+  {
+    id: 'cdoc-001',
+    client_id: 'cli-001',
+    org_id: '00000000-0000-0000-0000-000000000001',
+    doc_type: 'physician_orders_485',
+    file_storage_path: 'clients/cli-001/physician_orders_485_2026.pdf',
+    file_name: 'Emory_Physician_Order_485.pdf',
+    file_size_bytes: 420500,
+    mime_type: 'application/pdf',
+    effective_date: '2026-08-01',
+    expiration_date: '2026-10-30',
+    created_at: new Date(Date.now() - 86400000 * 30).toISOString(),
+  },
+  {
+    id: 'cdoc-002',
+    client_id: 'cli-001',
+    org_id: '00000000-0000-0000-0000-000000000001',
+    doc_type: 'service_agreement',
+    file_storage_path: 'clients/cli-001/signed_service_agreement.pdf',
+    file_name: 'Signed_Service_Agreement_WOH.pdf',
+    file_size_bytes: 310200,
+    mime_type: 'application/pdf',
+    effective_date: '2026-08-01',
+    created_at: new Date(Date.now() - 86400000 * 30).toISOString(),
+  },
+];
+
+export function createClientProfile(input: ClientIntakeInput): ClientProfile {
+  const id = `cli-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
+  const now = new Date().toISOString();
+
+  const profile: ClientProfile = {
+    ...input,
+    id,
+    status: 'intake_pending',
+    created_at: now,
+    updated_at: now,
+  };
+
+  mockClients.set(id, profile);
+  return profile;
+}
+
+export function getClientProfile(id: string): ClientProfile | undefined {
+  return mockClients.get(id);
+}
+
+export function listClients(orgId?: string, stateCode?: string): ClientProfile[] {
+  return Array.from(mockClients.values()).filter((c) => {
+    if (orgId && c.org_id !== orgId) return false;
+    if (stateCode && c.state_code !== stateCode) return false;
+    return true;
+  });
+}
+
+export function uploadClientDocument(doc: Omit<ClientDocument, 'id' | 'created_at'>): ClientDocument {
+  const newDoc: ClientDocument = {
+    ...doc,
+    id: `cdoc-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+    created_at: new Date().toISOString(),
+  };
+  mockClientDocuments.push(newDoc);
+  return newDoc;
+}
+
+export function listClientDocuments(clientId: string): ClientDocument[] {
+  return mockClientDocuments.filter((d) => d.client_id === clientId);
+}
+
 
 

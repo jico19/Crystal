@@ -82,8 +82,16 @@ export const PersonalInfoStepSchema = z.object({
   ),
   dob: z.string()
     .regex(/^\d{4}-\d{2}-\d{2}$/, 'DOB must be YYYY-MM-DD')
-    .refine((date) => {
-      const age = (new Date().getTime() - new Date(date).getTime()) / (365.25 * 24 * 60 * 60 * 1000);
+    .refine((dateStr) => {
+      const [year, month, day] = dateStr.split('-').map(Number);
+      const today = new Date();
+      const currentYear = today.getUTCFullYear();
+      const currentMonth = today.getUTCMonth() + 1;
+      const currentDay = today.getUTCDate();
+      let age = currentYear - year;
+      if (currentMonth < month || (currentMonth === month && currentDay < day)) {
+        age--;
+      }
       return age >= 18;
     }, 'Applicant must be at least 18 years old'),
   ssn: z.string().regex(/^\d{3}-?\d{2}-?\d{4}$/, 'Valid 9-digit SSN required'),
@@ -288,5 +296,174 @@ export const DocumentReviewSchema = z.object({
 );
 
 export type DocumentReviewInput = z.infer<typeof DocumentReviewSchema>;
+
+// ============================================================
+// Training Portal Validation Schemas (Feature Spec 04)
+// ============================================================
+export const TrainingCategorySchema = z.enum([
+  'hipaa',
+  'infection_control',
+  'elder_abuse',
+  'client_rights',
+  'emergency',
+  'dementia',
+  'body_mechanics',
+]);
+
+export const QuizQuestionSchema = z.object({
+  id: z.string(),
+  question: z.string().min(5),
+  options: z.array(z.string().min(1)).min(2),
+  correct_index: z.number().int().min(0),
+});
+
+export const TrainingModuleSchema = z.object({
+  id: z.string().uuid().optional(),
+  org_id: z.string().uuid().nullable().optional(),
+  state_code: z.enum(['GA', 'IN', 'FL', 'ALL']).default('ALL'),
+  title: z.string().min(3, 'Title must be at least 3 characters'),
+  description: z.string().min(10, 'Description must be at least 10 characters'),
+  category: TrainingCategorySchema,
+  video_url: z.string().min(1, 'Video URL is required'),
+  video_duration_seconds: z.number().int().positive('Duration must be positive'),
+  required_hours: z.number().positive('Hours must be positive').default(1.0),
+  passing_score_percentage: z.number().int().min(50).max(100).default(80),
+  quiz_questions: z.array(QuizQuestionSchema).min(1, 'At least one quiz question required'),
+  is_mandatory: z.boolean().default(true),
+  is_active: z.boolean().default(true),
+});
+
+export const QuizAnswerSubmissionSchema = z.object({
+  question_id: z.string().min(1, 'Question ID is required'),
+  selected_index: z.number().int().min(0, 'Invalid option selected'),
+});
+
+export const SubmitQuizSchema = z.object({
+  caregiver_id: z.string().min(1, 'Caregiver ID is required'),
+  module_id: z.string().min(1, 'Module ID is required'),
+  answers: z.array(QuizAnswerSubmissionSchema).min(1, 'All questions must be answered'),
+});
+
+export type SubmitQuizInput = z.infer<typeof SubmitQuizSchema>;
+
+export const UpdateVideoProgressSchema = z.object({
+  caregiver_id: z.string().min(1, 'Caregiver ID is required'),
+  module_id: z.string().min(1, 'Module ID is required'),
+  watch_progress_seconds: z.number().min(0, 'Watch progress cannot be negative'),
+  total_duration_seconds: z.number().positive('Total duration must be positive'),
+});
+
+export type UpdateVideoProgressInput = z.infer<typeof UpdateVideoProgressSchema>;
+
+// ============================================================
+// Client Intake & Document Management Schemas (Feature Spec 05)
+// ============================================================
+export const ClientStatusSchema = z.enum([
+  'inquiry',
+  'intake_pending',
+  'assessment_scheduled',
+  'active',
+  'on_hold',
+  'discharged',
+]);
+
+export const PayerTypeSchema = z.enum([
+  'medicaid_waiver',
+  'private_pay',
+  'va_community_care',
+  'long_term_care_insurance',
+  'commercial_insurance',
+]);
+
+export const ClientAddressSchema = z.object({
+  street: z.string().min(3, 'Street address is required'),
+  apt: z.string().optional(),
+  city: z.string().min(2, 'City is required'),
+  state: z.string().length(2, 'State code must be 2 characters'),
+  zip: z.string().regex(/^\d{5}(-\d{4})?$/, 'Valid ZIP code required'),
+  gate_code: z.string().optional(),
+});
+
+export const EmergencyContactSchema = z.object({
+  name: z.string().min(2, 'Contact name is required'),
+  relationship: z.string().min(2, 'Relationship is required'),
+  phone: z.string().regex(/^\+?1?\s*\(?-*\d{3}\)?[-.\s]*\d{3}[-.\s]*\d{4}$/, 'Valid phone number required'),
+  is_primary: z.boolean().default(false),
+  has_poa: z.boolean().default(false),
+});
+
+export const PrimaryPhysicianSchema = z.object({
+  name: z.string().min(2, 'Physician name is required'),
+  practice: z.string().optional(),
+  phone: z.string().regex(/^\+?1?\s*\(?-*\d{3}\)?[-.\s]*\d{3}[-.\s]*\d{4}$/, 'Valid phone number required'),
+  fax: z.string().optional(),
+  npi: z.string().optional(),
+});
+
+export const CareNeedsSchema = z.object({
+  adls: z.array(z.string()).default([]),
+  iadls: z.array(z.string()).default([]),
+  allergies: z.array(z.string()).default([]),
+  diagnoses: z.array(z.string()).default([]),
+  mobility_notes: z.string().optional(),
+  dietary_restrictions: z.string().optional(),
+});
+
+export const PayerDetailsSchema = z.object({
+  policy_number: z.string().optional(),
+  group_number: z.string().optional(),
+  case_manager_name: z.string().optional(),
+  case_manager_phone: z.string().optional(),
+  pre_auth_number: z.string().optional(),
+});
+
+export const ClientIntakeSchema = z.object({
+  org_id: z.string().uuid('Valid organization ID is required'),
+  state_code: z.enum(['GA', 'IN', 'FL']),
+  first_name: z.string().min(2, 'First name is required').max(100),
+  middle_name: z.string().max(100).optional(),
+  last_name: z.string().min(2, 'Last name is required').max(100),
+  dob: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'DOB must be YYYY-MM-DD'),
+  gender: z.string().optional(),
+  ssn_last4: z.string().regex(/^\d{4}$/, 'SSN last 4 digits required').optional(),
+  medicaid_id: z.string().optional(),
+  primary_phone: z.string().regex(/^\+?1?\s*\(?-*\d{3}\)?[-.\s]*\d{3}[-.\s]*\d{4}$/, 'Valid phone number required'),
+  service_address: ClientAddressSchema,
+  emergency_contacts: z.array(EmergencyContactSchema).min(1, 'At least one emergency contact is required'),
+  primary_physician: PrimaryPhysicianSchema,
+  care_needs: CareNeedsSchema,
+  primary_payer: PayerTypeSchema,
+  payer_details: PayerDetailsSchema.optional(),
+});
+
+export type ClientIntakeInput = z.infer<typeof ClientIntakeSchema>;
+
+export const ClientDocTypeSchema = z.enum([
+  'physician_orders_485',
+  'rn_assessment',
+  'service_agreement',
+  'insurance_card',
+  'poa_legal',
+]);
+
+export const ClientDocumentUploadSchema = z.object({
+  client_id: z.string().uuid('Valid client ID required'),
+  org_id: z.string().uuid('Valid organization ID required'),
+  doc_type: ClientDocTypeSchema,
+  file_name: z.string().min(1, 'File name is required'),
+  file_size_bytes: z.number().max(25 * 1024 * 1024, 'Max file size 25MB'),
+  mime_type: z.enum([
+    'application/pdf',
+    'image/png',
+    'image/jpeg',
+    'image/jpg',
+    'image/webp',
+  ]),
+  file_base64: z.string().optional(),
+  effective_date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Effective date must be YYYY-MM-DD').optional().or(z.literal('')),
+  expiration_date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Expiration date must be YYYY-MM-DD').optional().or(z.literal('')),
+});
+
+export type ClientDocumentUploadInput = z.infer<typeof ClientDocumentUploadSchema>;
 
 

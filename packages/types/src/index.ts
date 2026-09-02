@@ -371,5 +371,223 @@ export interface DocumentReviewPayload {
   corrected_expiration_date?: string;
 }
 
+// ============================================================
+// Training Portal Types (Feature Spec 04)
+// ============================================================
+export type TrainingCategory =
+  | 'hipaa'
+  | 'infection_control'
+  | 'elder_abuse'
+  | 'client_rights'
+  | 'emergency'
+  | 'dementia'
+  | 'body_mechanics';
+
+export interface QuizQuestion {
+  id: string;
+  question: string;
+  options: string[];
+  correct_index: number;
+}
+
+export interface TrainingModule {
+  id: string;
+  org_id?: string | null;
+  state_code: 'GA' | 'IN' | 'FL' | 'ALL';
+  title: string;
+  description: string;
+  category: TrainingCategory;
+  video_url: string;
+  video_duration_seconds: number;
+  required_hours: number;
+  passing_score_percentage: number;
+  quiz_questions: QuizQuestion[];
+  is_mandatory: boolean;
+  is_active: boolean;
+  created_at: string;
+}
+
+export interface CaregiverTrainingProgress {
+  id: string;
+  caregiver_id: string;
+  module_id: string;
+  watch_progress_percentage: number;
+  video_completed: boolean;
+  quiz_attempts: number;
+  quiz_score_percentage?: number | null;
+  passed: boolean;
+  certificate_url?: string | null;
+  certificate_hash?: string | null;
+  completed_at?: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface QuizAnswerSubmission {
+  question_id: string;
+  selected_index: number;
+}
+
+export interface QuizSubmissionPayload {
+  caregiver_id: string;
+  module_id: string;
+  answers: QuizAnswerSubmission[];
+}
+
+export interface VideoProgressPayload {
+  caregiver_id: string;
+  module_id: string;
+  watch_progress_seconds: number;
+  total_duration_seconds: number;
+}
+
+export interface QuizResultResponse {
+  success: boolean;
+  module_id: string;
+  score_percentage: number;
+  passing_score: number;
+  passed: boolean;
+  total_questions: number;
+  correct_count: number;
+  certificate_url?: string;
+  certificate_hash?: string;
+  message: string;
+}
+
+export interface TrainingComplianceSummary {
+  caregiver_id: string;
+  completed_modules_count: number;
+  total_mandatory_modules: number;
+  total_earned_hours: number;
+  required_annual_hours: number;
+  compliance_percentage: number;
+  is_compliant: boolean;
+}
+
+// ============================================================
+// Client Intake & Document Management Types (Feature Spec 05)
+// ============================================================
+export type ClientStatus =
+  | 'inquiry'
+  | 'intake_pending'
+  | 'assessment_scheduled'
+  | 'active'
+  | 'on_hold'
+  | 'discharged';
+
+export type PayerType =
+  | 'medicaid_waiver'
+  | 'private_pay'
+  | 'va_community_care'
+  | 'long_term_care_insurance'
+  | 'commercial_insurance';
+
+export interface ClientAddress {
+  street: string;
+  apt?: string;
+  city: string;
+  state: string;
+  zip: string;
+  gate_code?: string;
+}
+
+export interface EmergencyContact {
+  name: string;
+  relationship: string;
+  phone: string;
+  is_primary: boolean;
+  has_poa: boolean;
+}
+
+export interface PrimaryPhysician {
+  name: string;
+  practice?: string;
+  phone: string;
+  fax?: string;
+  npi?: string;
+}
+
+export interface CareNeeds {
+  adls: string[];
+  iadls: string[];
+  allergies: string[];
+  diagnoses: string[];
+  mobility_notes?: string;
+  dietary_restrictions?: string;
+}
+
+export interface PayerDetails {
+  policy_number?: string;
+  group_number?: string;
+  case_manager_name?: string;
+  case_manager_phone?: string;
+  pre_auth_number?: string;
+}
+
+export interface ClientProfile {
+  id: string;
+  org_id: string;
+  state_code: StateCode;
+  status: ClientStatus;
+  first_name: string;
+  middle_name?: string;
+  last_name: string;
+  dob: string;
+  gender?: string;
+  ssn_last4?: string;
+  medicaid_id?: string;
+  primary_phone: string;
+  service_address: ClientAddress;
+  emergency_contacts: EmergencyContact[];
+  primary_physician: PrimaryPhysician;
+  care_needs: CareNeeds;
+  primary_payer: PayerType;
+  payer_details?: PayerDetails;
+  assigned_rn_id?: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export type ClientDocType =
+  | 'physician_orders_485'
+  | 'rn_assessment'
+  | 'service_agreement'
+  | 'insurance_card'
+  | 'poa_legal';
+
+export interface ClientDocument {
+  id: string;
+  client_id: string;
+  org_id: string;
+  doc_type: ClientDocType;
+  file_storage_path: string;
+  file_name: string;
+  file_size_bytes: number;
+  mime_type: string;
+  effective_date?: string;
+  expiration_date?: string;
+  uploaded_by?: string;
+  created_at: string;
+}
+
+export interface ClientIntakeInput {
+  org_id: string;
+  state_code: StateCode;
+  first_name: string;
+  middle_name?: string;
+  last_name: string;
+  dob: string;
+  gender?: string;
+  ssn_last4?: string;
+  medicaid_id?: string;
+  primary_phone: string;
+  service_address: ClientAddress;
+  emergency_contacts: EmergencyContact[];
+  primary_physician: PrimaryPhysician;
+  care_needs: CareNeeds;
+  primary_payer: PayerType;
+  payer_details?: PayerDetails;
+}
+
 
 

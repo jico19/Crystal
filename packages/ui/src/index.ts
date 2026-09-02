@@ -27,5 +27,18 @@ export { DocumentUploadModal } from './components/DocumentUploadModal';
 export type { DocumentUploadModalProps } from './components/DocumentUploadModal';
 export { DocumentChecklistTable } from './components/DocumentChecklistTable';
 export type { DocumentChecklistTableProps } from './components/DocumentChecklistTable';
+export { TrainingModuleCard } from './components/TrainingModuleCard';
+export type { TrainingModuleCardProps } from './components/TrainingModuleCard';
+export { VideoPlayerWithProgress } from './components/VideoPlayerWithProgress';
+export type { VideoPlayerWithProgressProps } from './components/VideoPlayerWithProgress';
+export { QuizKnowledgeCheckModal } from './components/QuizKnowledgeCheckModal';
+export type { QuizKnowledgeCheckModalProps } from './components/QuizKnowledgeCheckModal';
+export { CertificateModal } from './components/CertificateModal';
+export type { CertificateModalProps } from './components/CertificateModal';
+export { TrainingPortalCatalog } from './components/TrainingPortalCatalog';
+export type { TrainingPortalCatalogProps } from './components/TrainingPortalCatalog';
+export { ClientIntakeWizard } from './components/ClientIntakeWizard';
+export type { ClientIntakeWizardProps } from './components/ClientIntakeWizard';
+
 
 

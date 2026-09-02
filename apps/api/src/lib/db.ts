@@ -23,6 +23,13 @@ import type {
   DocumentAuditActionType,
   ComplianceScore,
   OcrExtractedData,
+  TrainingModule,
+  CaregiverTrainingProgress,
+  QuizResultResponse,
+  TrainingComplianceSummary,
+  ClientProfile,
+  ClientDocument,
+  ClientIntakeInput,
 } from '@crystal/types';
 import { computeDocumentHash, sanitizePersonalInfoSSN } from './security';
 import {
@@ -31,6 +38,10 @@ import {
   mockInquiries,
   mockCaregiverDocuments,
   mockDocumentAuditLogs,
+  mockTrainingModules,
+  mockCaregiverTrainingProgress,
+  mockClients,
+  mockClientDocuments,
   enrichDocumentWithExpiration,
   calculateComplianceScore,
   createDocumentAuditLog,
@@ -39,6 +50,17 @@ import {
   createSignatureEnvelope as storeCreateEnvelope,
   getSignatureEnvelope as storeGetEnvelope,
   completeSignatureEnvelope as storeCompleteEnvelope,
+  getTrainingModules as storeGetTrainingModules,
+  getTrainingModuleById as storeGetTrainingModuleById,
+  getCaregiverTrainingProgress as storeGetCaregiverTrainingProgress,
+  updateTrainingProgress as storeUpdateTrainingProgress,
+  submitTrainingQuiz as storeSubmitTrainingQuiz,
+  getTrainingComplianceSummary as storeGetTrainingComplianceSummary,
+  createClientProfile as storeCreateClientProfile,
+  getClientProfile as storeGetClientProfile,
+  listClients as storeListClients,
+  uploadClientDocument as storeUploadClientDocument,
+  listClientDocuments as storeListClientDocuments,
 } from './store';
 
 // ─── Singleton Database Instance ─────────────────────────────────────────────
@@ -218,6 +240,81 @@ export async function initDb(force = false): Promise<PGlite> {
           created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
         );
 
+        CREATE TABLE IF NOT EXISTS training_modules (
+          id TEXT PRIMARY KEY,
+          org_id UUID REFERENCES organizations(id),
+          state_code TEXT NOT NULL DEFAULT 'ALL',
+          title TEXT NOT NULL,
+          description TEXT NOT NULL,
+          category TEXT NOT NULL,
+          video_url TEXT NOT NULL,
+          video_duration_seconds INTEGER NOT NULL,
+          required_hours NUMERIC(4,2) NOT NULL DEFAULT 1.00,
+          passing_score_percentage INTEGER NOT NULL DEFAULT 80,
+          quiz_questions JSONB NOT NULL DEFAULT '[]'::jsonb,
+          is_mandatory BOOLEAN NOT NULL DEFAULT true,
+          is_active BOOLEAN NOT NULL DEFAULT true,
+          created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+        );
+
+        CREATE TABLE IF NOT EXISTS caregiver_training_progress (
+          id TEXT PRIMARY KEY,
+          caregiver_id TEXT NOT NULL,
+          module_id TEXT NOT NULL REFERENCES training_modules(id) ON DELETE CASCADE,
+          watch_progress_percentage NUMERIC(5,2) NOT NULL DEFAULT 0.00,
+          video_completed BOOLEAN NOT NULL DEFAULT false,
+          quiz_attempts INTEGER NOT NULL DEFAULT 0,
+          quiz_score_percentage INTEGER,
+          passed BOOLEAN NOT NULL DEFAULT false,
+          certificate_url TEXT,
+          certificate_hash TEXT,
+          completed_at TIMESTAMPTZ,
+          created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+          updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+          UNIQUE(caregiver_id, module_id)
+        );
+
+        CREATE UNIQUE INDEX IF NOT EXISTS idx_cg_tr_prog_unique ON caregiver_training_progress(caregiver_id, module_id);
+
+        CREATE TABLE IF NOT EXISTS clients (
+          id TEXT PRIMARY KEY,
+          org_id UUID REFERENCES organizations(id),
+          state_code TEXT NOT NULL,
+          status TEXT NOT NULL DEFAULT 'inquiry',
+          first_name TEXT NOT NULL,
+          middle_name TEXT,
+          last_name TEXT NOT NULL,
+          dob DATE NOT NULL,
+          gender TEXT,
+          ssn_last4 TEXT,
+          medicaid_id TEXT,
+          primary_phone TEXT NOT NULL,
+          service_address JSONB NOT NULL,
+          emergency_contacts JSONB NOT NULL DEFAULT '[]'::jsonb,
+          primary_physician JSONB NOT NULL DEFAULT '{}'::jsonb,
+          care_needs JSONB NOT NULL DEFAULT '{}'::jsonb,
+          primary_payer TEXT NOT NULL DEFAULT 'private_pay',
+          payer_details JSONB DEFAULT '{}'::jsonb,
+          assigned_rn_id TEXT,
+          created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+          updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+        );
+
+        CREATE TABLE IF NOT EXISTS client_documents (
+          id TEXT PRIMARY KEY,
+          client_id TEXT NOT NULL REFERENCES clients(id) ON DELETE CASCADE,
+          org_id UUID REFERENCES organizations(id),
+          doc_type TEXT NOT NULL,
+          file_storage_path TEXT NOT NULL,
+          file_name TEXT NOT NULL,
+          file_size_bytes BIGINT NOT NULL,
+          mime_type TEXT NOT NULL,
+          effective_date DATE,
+          expiration_date DATE,
+          uploaded_by TEXT,
+          created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+        );
+
         -- Georgia Default Organization (With Open Hands)
         INSERT INTO organizations (
           id, name, state_code, domain, license_number, contact_phone, contact_email, emergency_phone,
@@ -307,6 +404,104 @@ export async function initDb(force = false): Promise<PGlite> {
           'new',
           NOW() - INTERVAL '12 hours',
           NOW() - INTERVAL '12 hours'
+        ) ON CONFLICT (id) DO NOTHING;
+
+        -- Seed Default Training Modules
+        INSERT INTO training_modules (
+          id, org_id, state_code, title, description, category, video_url,
+          video_duration_seconds, required_hours, passing_score_percentage, quiz_questions, is_mandatory, is_active
+        ) VALUES (
+          'mod-001', NULL, 'ALL',
+          'HIPAA Compliance & Client Privacy in Home Care',
+          'Mandatory annual training covering Protected Health Information (PHI), minimum necessary disclosures, digital device security, and breach reporting protocols.',
+          'hipaa',
+          'https://stream.crystalhomecare.com/lessons/hipaa-101.m3u8',
+          900, 1.50, 80,
+          '[{"id":"q1","question":"Under HIPAA, which of the following is considered Protected Health Information (PHI)?","options":["Client name, medical conditions, and residential address","The agency''s public website address","The caregiver''s personal lunch schedule","General state labor laws"],"correct_index":0},{"id":"q2","question":"When discussing a client''s care needs with family members, what must be verified first?","options":["Whether the family member paid for the service directly","Client consent or valid Power of Attorney (POA) on file","Caregiver''s personal relationship with the family","Only the client''s age"],"correct_index":1},{"id":"q3","question":"What is the appropriate protocol if you suspect a paper document containing client medical history was lost?","options":["Wait 30 days to see if someone returns it","Immediately notify the agency Compliance Officer or Administrator","Create a duplicate and do not report it","Post an announcement on social media"],"correct_index":1}]'::jsonb,
+          true, true
+        ),
+        (
+          'mod-002', NULL, 'ALL',
+          'Infection Prevention & Bloodborne Pathogens',
+          'Standard precautions, proper PPE donning and doffing, hand hygiene, and sanitization protocols in private home care environments.',
+          'infection_control',
+          'https://stream.crystalhomecare.com/lessons/infection-control-102.m3u8',
+          720, 1.50, 80,
+          '[{"id":"q1","question":"What is the single most effective action to prevent the transmission of infection in home care?","options":["Wearing gloves at all times without washing hands","Proper hand hygiene using soap and water for at least 20 seconds","Opening windows in the client home","Spraying air freshener"],"correct_index":1},{"id":"q2","question":"When should personal protective equipment (PPE) like disposable gloves be removed?","options":["Immediately after finishing a care task and before touching clean surfaces","At the end of the shift only","After driving to the next client","Gloves can be washed and reused"],"correct_index":0}]'::jsonb,
+          true, true
+        ),
+        (
+          'mod-003', NULL, 'ALL',
+          'Elder Abuse Prevention, Neglect & Mandatory Reporting',
+          'Identifying physical, emotional, and financial elder abuse, recognizing signs of caregiver neglect, and state mandatory reporting timelines in Georgia and Indiana.',
+          'elder_abuse',
+          'https://stream.crystalhomecare.com/lessons/elder-abuse-103.m3u8',
+          600, 1.00, 80,
+          '[{"id":"q1","question":"As a home care employee in GA/IN, if you observe unexplained bruises or sudden withdrawals from a vulnerable adult''s account, what is your legal duty?","options":["Investigate the family independently","You are a mandatory reporter and must report suspected abuse immediately to Adult Protective Services (APS)","Wait until the client formally complains","Only discuss it if asked by a supervisor"],"correct_index":1}]'::jsonb,
+          true, true
+        ),
+        (
+          'mod-004', NULL, 'GA',
+          'Georgia DCH Healthcare Facility Regulation & Client Rights',
+          'Georgia-specific Department of Community Health (DCH) Chapter 111-8-65 standards for Private Home Care Providers and client bill of rights.',
+          'client_rights',
+          'https://stream.crystalhomecare.com/lessons/ga-dch-rights.m3u8',
+          600, 1.00, 80,
+          '[{"id":"q1","question":"Under Georgia DCH rules, clients have the right to:","options":["Be treated with dignity, participate in their care plan, and lodge grievances without retaliation","Change caregiver pay rates directly","Refuse to sign mandatory state consent forms","Dictate overtime schedules for agency staff"],"correct_index":0}]'::jsonb,
+          true, true
+        ),
+        (
+          'mod-005', NULL, 'IN',
+          'Indiana FSSA Standards & Attendant Care Guidelines',
+          'Indiana Family and Social Services Administration (FSSA) home and community-based services rules and documentation standards.',
+          'client_rights',
+          'https://stream.crystalhomecare.com/lessons/in-fssa-standards.m3u8',
+          600, 1.00, 80,
+          '[{"id":"q1","question":"Under Indiana Medicaid waiver rules, service times and tasks must match:","options":["The authorized Individualized Service Plan (ISP) agreed with the Case Manager","Whatever hours the client requests verbally on that day","Caregiver personal preference","Standard 40-hour weekly templates regardless of assessment"],"correct_index":0}]'::jsonb,
+          true, true
+        ) ON CONFLICT (id) DO NOTHING;
+
+        -- Seed Default Clients
+        INSERT INTO clients (
+          id, org_id, state_code, status, first_name, last_name, dob, gender, ssn_last4,
+          medicaid_id, primary_phone, service_address, emergency_contacts, primary_physician, care_needs, primary_payer, payer_details
+        ) VALUES (
+          'cli-001',
+          '00000000-0000-0000-0000-000000000001',
+          'GA',
+          'active',
+          'Arthur',
+          'Pendelton',
+          '1945-04-12',
+          'Male',
+          '8831',
+          'GA-MED-99281',
+          '(404) 555-1945',
+          '{"street":"1420 Piedmont Ave NE","apt":"Apt 4B","city":"Atlanta","state":"GA","zip":"30309","gate_code":"#4419"}'::jsonb,
+          '[{"name":"Sarah Pendelton Miller","relationship":"Daughter","phone":"(404) 555-9012","is_primary":true,"has_poa":true}]'::jsonb,
+          '{"name":"Dr. Robert Chen, MD","practice":"Emory Geriatric Care","phone":"(404) 555-7000","fax":"(404) 555-7001","npi":"1234567890"}'::jsonb,
+          '{"adls":["bathing","dressing","transferring"],"iadls":["meal_prep","medication_reminders","light_housekeeping"],"allergies":["Penicillin","Sulfa drugs"],"diagnoses":["Hypertension","Mild Cognitive Impairment (MCI)","Osteoarthritis"],"mobility_notes":"Uses walker for ambulation; standby assistance required for shower."}'::jsonb,
+          'medicaid_waiver',
+          '{"policy_number":"CCSP-8831-GA","case_manager_name":"Brenda Washington, LCSW","case_manager_phone":"(404) 555-3399"}'::jsonb
+        ),
+        (
+          'cli-002',
+          '00000000-0000-0000-0000-000000000002',
+          'IN',
+          'intake_pending',
+          'Evelyn',
+          'Harper',
+          '1952-11-03',
+          'Female',
+          '4192',
+          'IN-MED-77182',
+          '(317) 555-6671',
+          '{"street":"884 Meridian St","city":"Indianapolis","state":"IN","zip":"46204"}'::jsonb,
+          '[{"name":"James Harper","relationship":"Son","phone":"(317) 555-8820","is_primary":true,"has_poa":false}]'::jsonb,
+          '{"name":"Dr. Laura Miller","practice":"IU Health Physicians","phone":"(317) 555-4000"}'::jsonb,
+          '{"adls":["bathing","continence"],"iadls":["meal_prep","shopping"],"allergies":["Latex"],"diagnoses":["Type 2 Diabetes","Diabetic Neuropathy"]}'::jsonb,
+          'private_pay',
+          '{}'::jsonb
         ) ON CONFLICT (id) DO NOTHING;
       `);
     } catch (err) {
@@ -1242,4 +1437,402 @@ export async function logDocumentAuditDb(params: {
   mockDocumentAuditLogs.push(auditLog);
   return auditLog;
 }
+
+// ─── Training Module & Progress Database Operations (Feature Spec 04) ────────
+
+export async function listTrainingModulesDb(stateCode?: string): Promise<TrainingModule[]> {
+  try {
+    await initDb();
+    const db = getDb();
+    let query = 'SELECT * FROM training_modules WHERE is_active = true';
+    const params: unknown[] = [];
+    if (stateCode && stateCode !== 'ALL') {
+      query += ' AND (state_code = $1 OR state_code = \'ALL\')';
+      params.push(stateCode);
+    }
+    query += ' ORDER BY required_hours DESC, title ASC';
+    const res = await db.query<any>(query, params);
+    if (res.rows && res.rows.length > 0) {
+      return res.rows.map((r) => ({
+        id: r.id,
+        org_id: r.org_id,
+        state_code: r.state_code,
+        title: r.title,
+        description: r.description,
+        category: r.category,
+        video_url: r.video_url,
+        video_duration_seconds: Number(r.video_duration_seconds),
+        required_hours: Number(r.required_hours),
+        passing_score_percentage: Number(r.passing_score_percentage),
+        quiz_questions: parseJson(r.quiz_questions),
+        is_mandatory: Boolean(r.is_mandatory),
+        is_active: Boolean(r.is_active),
+        created_at: r.created_at,
+      }));
+    }
+  } catch (err) {
+    console.warn('[listTrainingModulesDb] Falling back to memory store:', err);
+  }
+  return storeGetTrainingModules(stateCode);
+}
+
+export async function getTrainingModuleDb(id: string): Promise<TrainingModule | undefined> {
+  try {
+    await initDb();
+    const db = getDb();
+    const res = await db.query<any>('SELECT * FROM training_modules WHERE id = $1', [id]);
+    if (res.rows && res.rows.length > 0) {
+      const r = res.rows[0];
+      return {
+        id: r.id,
+        org_id: r.org_id,
+        state_code: r.state_code,
+        title: r.title,
+        description: r.description,
+        category: r.category,
+        video_url: r.video_url,
+        video_duration_seconds: Number(r.video_duration_seconds),
+        required_hours: Number(r.required_hours),
+        passing_score_percentage: Number(r.passing_score_percentage),
+        quiz_questions: parseJson(r.quiz_questions),
+        is_mandatory: Boolean(r.is_mandatory),
+        is_active: Boolean(r.is_active),
+        created_at: r.created_at,
+      };
+    }
+  } catch (err) {
+    console.warn('[getTrainingModuleDb] Falling back to memory store:', err);
+  }
+  return storeGetTrainingModuleById(id);
+}
+
+export async function updateTrainingProgressDb(
+  caregiverId: string,
+  moduleId: string,
+  watchSeconds: number,
+  totalDurationSeconds: number
+): Promise<CaregiverTrainingProgress> {
+  const memoryResult = storeUpdateTrainingProgress(
+    caregiverId,
+    moduleId,
+    watchSeconds,
+    totalDurationSeconds
+  );
+
+  try {
+    await initDb();
+    const db = getDb();
+    await db.query(
+      `INSERT INTO caregiver_training_progress (
+         id, caregiver_id, module_id, watch_progress_percentage, video_completed,
+         quiz_attempts, quiz_score_percentage, passed, certificate_url, certificate_hash,
+         completed_at, created_at, updated_at
+       ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
+       ON CONFLICT (caregiver_id, module_id) DO UPDATE SET
+         watch_progress_percentage = GREATEST(caregiver_training_progress.watch_progress_percentage, EXCLUDED.watch_progress_percentage),
+         video_completed = caregiver_training_progress.video_completed OR EXCLUDED.video_completed,
+         updated_at = EXCLUDED.updated_at`,
+      [
+        memoryResult.id,
+        memoryResult.caregiver_id,
+        memoryResult.module_id,
+        memoryResult.watch_progress_percentage,
+        memoryResult.video_completed,
+        memoryResult.quiz_attempts,
+        memoryResult.quiz_score_percentage,
+        memoryResult.passed,
+        memoryResult.certificate_url,
+        memoryResult.certificate_hash,
+        memoryResult.completed_at,
+        memoryResult.created_at,
+        memoryResult.updated_at,
+      ]
+    );
+  } catch (err) {
+    console.warn('[updateTrainingProgressDb] Falling back to memory store:', err);
+  }
+
+  return memoryResult;
+}
+
+export async function getCaregiverTrainingProgressDb(caregiverId: string): Promise<CaregiverTrainingProgress[]> {
+  try {
+    await initDb();
+    const db = getDb();
+    const res = await db.query<any>(
+      'SELECT * FROM caregiver_training_progress WHERE caregiver_id = $1',
+      [caregiverId]
+    );
+    if (res.rows && res.rows.length > 0) {
+      return res.rows.map((r) => ({
+        id: r.id,
+        caregiver_id: r.caregiver_id,
+        module_id: r.module_id,
+        watch_progress_percentage: Number(r.watch_progress_percentage),
+        video_completed: Boolean(r.video_completed),
+        quiz_attempts: Number(r.quiz_attempts),
+        quiz_score_percentage: r.quiz_score_percentage !== null ? Number(r.quiz_score_percentage) : null,
+        passed: Boolean(r.passed),
+        certificate_url: r.certificate_url,
+        certificate_hash: r.certificate_hash,
+        completed_at: r.completed_at,
+        created_at: r.created_at,
+        updated_at: r.updated_at,
+      }));
+    }
+  } catch (err) {
+    console.warn('[getCaregiverTrainingProgressDb] Falling back to memory store:', err);
+  }
+  return storeGetCaregiverTrainingProgress(caregiverId);
+}
+
+export async function submitTrainingQuizDb(
+  caregiverId: string,
+  moduleId: string,
+  answers: Array<{ question_id: string; selected_index: number }>
+): Promise<QuizResultResponse> {
+  const result = storeSubmitTrainingQuiz(caregiverId, moduleId, answers);
+  const record = storeGetCaregiverTrainingProgress(caregiverId).find((p) => p.module_id === moduleId);
+
+  if (record) {
+    try {
+      await initDb();
+      const db = getDb();
+      await db.query(
+        `INSERT INTO caregiver_training_progress (
+           id, caregiver_id, module_id, watch_progress_percentage, video_completed,
+           quiz_attempts, quiz_score_percentage, passed, certificate_url, certificate_hash,
+           completed_at, created_at, updated_at
+         ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
+         ON CONFLICT (caregiver_id, module_id) DO UPDATE SET
+           quiz_attempts = EXCLUDED.quiz_attempts,
+           quiz_score_percentage = EXCLUDED.quiz_score_percentage,
+           passed = EXCLUDED.passed,
+           certificate_url = COALESCE(EXCLUDED.certificate_url, caregiver_training_progress.certificate_url),
+           certificate_hash = COALESCE(EXCLUDED.certificate_hash, caregiver_training_progress.certificate_hash),
+           completed_at = COALESCE(EXCLUDED.completed_at, caregiver_training_progress.completed_at),
+           updated_at = EXCLUDED.updated_at`,
+        [
+          record.id,
+          record.caregiver_id,
+          record.module_id,
+          record.watch_progress_percentage,
+          record.video_completed,
+          record.quiz_attempts,
+          record.quiz_score_percentage,
+          record.passed,
+          record.certificate_url,
+          record.certificate_hash,
+          record.completed_at,
+          record.created_at,
+          record.updated_at,
+        ]
+      );
+    } catch (err) {
+      console.warn('[submitTrainingQuizDb] Falling back to memory store:', err);
+    }
+  }
+
+  return result;
+}
+
+export async function getTrainingComplianceSummaryDb(
+  caregiverId: string,
+  stateCode: string = 'GA'
+): Promise<TrainingComplianceSummary> {
+  return storeGetTrainingComplianceSummary(caregiverId, stateCode);
+}
+
+// ─── Client Intake & Document Management DB Operations (Feature Spec 05) ──────
+
+export async function createClientProfileDb(input: ClientIntakeInput): Promise<ClientProfile> {
+  const profile = storeCreateClientProfile(input);
+
+  try {
+    await initDb();
+    const db = getDb();
+    await db.query(
+      `INSERT INTO clients (
+         id, org_id, state_code, status, first_name, middle_name, last_name,
+         dob, gender, ssn_last4, medicaid_id, primary_phone, service_address,
+         emergency_contacts, primary_physician, care_needs, primary_payer, payer_details,
+         created_at, updated_at
+       ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20)`,
+      [
+        profile.id,
+        profile.org_id,
+        profile.state_code,
+        profile.status,
+        profile.first_name,
+        profile.middle_name || null,
+        profile.last_name,
+        profile.dob,
+        profile.gender || null,
+        profile.ssn_last4 || null,
+        profile.medicaid_id || null,
+        profile.primary_phone,
+        JSON.stringify(profile.service_address),
+        JSON.stringify(profile.emergency_contacts),
+        JSON.stringify(profile.primary_physician),
+        JSON.stringify(profile.care_needs),
+        profile.primary_payer,
+        JSON.stringify(profile.payer_details || {}),
+        profile.created_at,
+        profile.updated_at,
+      ]
+    );
+  } catch (err) {
+    console.warn('[createClientProfileDb] Falling back to memory store:', err);
+  }
+
+  return profile;
+}
+
+export async function getClientProfileDb(id: string): Promise<ClientProfile | undefined> {
+  try {
+    await initDb();
+    const db = getDb();
+    const res = await db.query<any>('SELECT * FROM clients WHERE id = $1', [id]);
+    if (res.rows && res.rows.length > 0) {
+      const r = res.rows[0];
+      return {
+        id: r.id,
+        org_id: r.org_id,
+        state_code: r.state_code,
+        status: r.status,
+        first_name: r.first_name,
+        middle_name: r.middle_name,
+        last_name: r.last_name,
+        dob: r.dob instanceof Date ? r.dob.toISOString().split('T')[0] : String(r.dob),
+        gender: r.gender,
+        ssn_last4: r.ssn_last4,
+        medicaid_id: r.medicaid_id,
+        primary_phone: r.primary_phone,
+        service_address: parseJson(r.service_address),
+        emergency_contacts: parseJson(r.emergency_contacts),
+        primary_physician: parseJson(r.primary_physician),
+        care_needs: parseJson(r.care_needs),
+        primary_payer: r.primary_payer,
+        payer_details: parseJson(r.payer_details),
+        assigned_rn_id: r.assigned_rn_id,
+        created_at: r.created_at,
+        updated_at: r.updated_at,
+      };
+    }
+  } catch (err) {
+    console.warn('[getClientProfileDb] Falling back to memory store:', err);
+  }
+  return storeGetClientProfile(id);
+}
+
+export async function listClientsDb(orgId?: string, stateCode?: string): Promise<ClientProfile[]> {
+  try {
+    await initDb();
+    const db = getDb();
+    let query = 'SELECT * FROM clients WHERE 1=1';
+    const params: unknown[] = [];
+    if (orgId) {
+      params.push(orgId);
+      query += ` AND org_id = $${params.length}`;
+    }
+    if (stateCode) {
+      params.push(stateCode);
+      query += ` AND state_code = $${params.length}`;
+    }
+    query += ' ORDER BY created_at DESC';
+    const res = await db.query<any>(query, params);
+    if (res.rows && res.rows.length > 0) {
+      return res.rows.map((r) => ({
+        id: r.id,
+        org_id: r.org_id,
+        state_code: r.state_code,
+        status: r.status,
+        first_name: r.first_name,
+        middle_name: r.middle_name,
+        last_name: r.last_name,
+        dob: r.dob instanceof Date ? r.dob.toISOString().split('T')[0] : String(r.dob),
+        gender: r.gender,
+        ssn_last4: r.ssn_last4,
+        medicaid_id: r.medicaid_id,
+        primary_phone: r.primary_phone,
+        service_address: parseJson(r.service_address),
+        emergency_contacts: parseJson(r.emergency_contacts),
+        primary_physician: parseJson(r.primary_physician),
+        care_needs: parseJson(r.care_needs),
+        primary_payer: r.primary_payer,
+        payer_details: parseJson(r.payer_details),
+        assigned_rn_id: r.assigned_rn_id,
+        created_at: r.created_at,
+        updated_at: r.updated_at,
+      }));
+    }
+  } catch (err) {
+    console.warn('[listClientsDb] Falling back to memory store:', err);
+  }
+  return storeListClients(orgId, stateCode);
+}
+
+export async function uploadClientDocumentDb(
+  doc: Omit<ClientDocument, 'id' | 'created_at'>
+): Promise<ClientDocument> {
+  const newDoc = storeUploadClientDocument(doc);
+  try {
+    await initDb();
+    const db = getDb();
+    await db.query(
+      `INSERT INTO client_documents (
+         id, client_id, org_id, doc_type, file_storage_path, file_name,
+         file_size_bytes, mime_type, effective_date, expiration_date, uploaded_by, created_at
+       ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)`,
+      [
+        newDoc.id,
+        newDoc.client_id,
+        newDoc.org_id,
+        newDoc.doc_type,
+        newDoc.file_storage_path,
+        newDoc.file_name,
+        newDoc.file_size_bytes,
+        newDoc.mime_type,
+        newDoc.effective_date || null,
+        newDoc.expiration_date || null,
+        newDoc.uploaded_by || null,
+        newDoc.created_at,
+      ]
+    );
+  } catch (err) {
+    console.warn('[uploadClientDocumentDb] Falling back to memory store:', err);
+  }
+  return newDoc;
+}
+
+export async function listClientDocumentsDb(clientId: string): Promise<ClientDocument[]> {
+  try {
+    await initDb();
+    const db = getDb();
+    const res = await db.query<any>(
+      'SELECT * FROM client_documents WHERE client_id = $1 ORDER BY created_at DESC',
+      [clientId]
+    );
+    if (res.rows && res.rows.length > 0) {
+      return res.rows.map((r) => ({
+        id: r.id,
+        client_id: r.client_id,
+        org_id: r.org_id,
+        doc_type: r.doc_type,
+        file_storage_path: r.file_storage_path,
+        file_name: r.file_name,
+        file_size_bytes: Number(r.file_size_bytes),
+        mime_type: r.mime_type,
+        effective_date: r.effective_date ? (r.effective_date instanceof Date ? r.effective_date.toISOString().split('T')[0] : String(r.effective_date)) : undefined,
+        expiration_date: r.expiration_date ? (r.expiration_date instanceof Date ? r.expiration_date.toISOString().split('T')[0] : String(r.expiration_date)) : undefined,
+        uploaded_by: r.uploaded_by,
+        created_at: r.created_at,
+      }));
+    }
+  } catch (err) {
+    console.warn('[listClientDocumentsDb] Falling back to memory store:', err);
+  }
+  return storeListClientDocuments(clientId);
+}
+
 

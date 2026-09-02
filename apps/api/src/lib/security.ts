@@ -94,3 +94,23 @@ export function computeDocumentHash(data: {
   return crypto.createHash('sha256').update(canonicalPayload).digest('hex');
 }
 
+/**
+ * Computes a deterministic SHA-256 certificate verification hash stamp.
+ */
+export function computeCertificateHash(data: {
+  caregiver_id: string;
+  module_id: string;
+  score: number;
+  passed_at: string;
+}): string {
+  const canonicalPayload = JSON.stringify({
+    type: 'TRAINING_CERTIFICATE',
+    caregiver_id: data.caregiver_id,
+    module_id: data.module_id,
+    score: data.score,
+    passed_at: data.passed_at,
+  });
+  return crypto.createHash('sha256').update(canonicalPayload).digest('hex');
+}
+
+
