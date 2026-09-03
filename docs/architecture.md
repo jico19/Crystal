@@ -1,5 +1,10 @@
 # Technical Architecture Specification
 
+> [!IMPORTANT]
+> **Revision Note (2026-09-03):** Frontend framework changed from **Next.js 14+** to **Vite 8 + React 19 (SPA)**. Backend framework changed to **Express.js v5.2.x** (latest stable). All architectural principles, data isolation guarantees, and HIPAA-ready controls are fully preserved.
+
+---
+
 ## 1. System Overview & Core Architecture
 
 Crystal is engineered as a **Multi-State Frontend + Unified API + Centralized Backend Infrastructure** platform. It consolidates independent state agency operations (**Georgia — With Open Hands** and **Indiana — Cherish Open Arms**) onto a single scalable backend, while allowing future state expansions (e.g., **Florida**) to be added without rebuilding or duplicating the core platform.
@@ -7,18 +12,18 @@ Crystal is engineered as a **Multi-State Frontend + Unified API + Centralized Ba
 ```text
 Georgia Domain (withopenhands.com)
       ↓
-Georgia Next.js App
+Georgia Vite + React SPA
       │
       ├──────────────┐
       │              │
 Indiana Domain (cherishopenarms.com)
       ↓              │
-Indiana Next.js App  │
+Indiana Vite + React SPA  │
       │              │
       └──────┬───────┘
              ↓
       Unified Crystal API
-       (Modular Monolith)
+       (Express.js v5 — Modular Monolith)
              ↓
    ┌─────────┼──────────┐
    ↓         ↓          ↓
@@ -35,10 +40,10 @@ graph TB
         FL_Domain["Florida Domain (Future)<br/>florida-domain.com"]
     end
 
-    subgraph FrontendApps["State Frontend Tier (Next.js 14+ Applications)"]
-        GA_App["Georgia Next.js App<br/>(apps/georgia)<br/>With Open Hands UI & Forms"]
-        IN_App["Indiana Next.js App<br/>(apps/indiana)<br/>Cherish Open Arms UI & Forms"]
-        FL_App["Florida Next.js App (Future)<br/>(apps/florida)"]
+    subgraph FrontendApps["State Frontend Tier (Vite 8 + React 19 SPAs)"]
+        GA_App["Georgia Vite SPA<br/>(apps/georgia)<br/>With Open Hands UI & Forms"]
+        IN_App["Indiana Vite SPA<br/>(apps/indiana)<br/>Cherish Open Arms UI & Forms"]
+        FL_App["Florida Vite SPA (Future)<br/>(apps/florida)"]
         SharedUI["Shared Packages<br/>(@crystal/ui, @crystal/types, @crystal/validation)"]
         
         WOH_Domain --> GA_App
@@ -53,7 +58,7 @@ graph TB
     subgraph APITier["Unified Backend Tier (apps/api)"]
         Gateway["Reverse Proxy / API Gateway (TLS 1.3 Termination)"]
         
-        subgraph ModularMonolith["Unified Crystal API (Modular Monolith)"]
+        subgraph ModularMonolith["Unified Crystal API (Express.js v5 — Modular Monolith)"]
             AuthMod["Authentication"]
             UserMod["Users"]
             OrgMod["Organizations / States"]
@@ -116,14 +121,62 @@ graph TB
 
 ---
 
-## 2. Unified API as a Modular Monolith
+## 2. Tech Stack
+
+### 2.1 Frontend — Vite 8 + React 19 (SPA per State)
+
+| Concern | Technology | Version |
+| :--- | :--- | :--- |
+| **Build Tool** | Vite | **8.x** (latest stable, Rolldown-powered) |
+| **UI Framework** | React | **19.x** |
+| **Language** | TypeScript | 5.x strict mode |
+| **Routing** | React Router | v7 (client-side SPA routing) |
+| **State Management** | TanStack Query (server state) + Zustand (UI state) | Latest stable |
+| **Forms & Validation** | React Hook Form + Zod | Latest stable |
+| **Component Library** | shadcn/ui + Tailwind CSS v4 | Latest stable |
+| **HTTP Client** | Axios or native `fetch` with typed wrappers | — |
+| **Testing** | Vitest + React Testing Library | Latest stable |
+
+> [!NOTE]
+> **SPA vs SSR Trade-off:** Vite produces a fully client-side rendered SPA — no server-side rendering. Initial HTML is a static shell; all content is rendered in the browser after JavaScript loads. This is an intentional decision — Crystal's state portals are authenticated dashboards and intake forms, not SEO-dependent marketing sites. Static shells are served instantly from Caddy with zero cold-start latency.
+
+### 2.2 Backend — Express.js v5 (Unified API)
+
+| Concern | Technology | Version |
+| :--- | :--- | :--- |
+| **HTTP Framework** | Express.js | **v5.2.x** (latest stable) |
+| **Language** | TypeScript | 5.x strict mode |
+| **Runtime** | Node.js | 22.x LTS |
+| **Authentication** | JSON Web Tokens (JWT) via `jose` | Latest stable |
+| **Input Validation** | Zod (server-side, shared from `@crystal/validation`) | Latest stable |
+| **ORM / Query Builder** | Drizzle ORM or `pg` (node-postgres) with raw typed queries | Latest stable |
+| **Background Jobs** | `node-cron` (scheduled cron tasks within the API process) | Latest stable |
+| **File Uploads** | `multer` (multipart) + direct S3 presigned URL strategy | Latest stable |
+| **Logging** | `pino` (structured JSON logging) | Latest stable |
+| **Testing** | Vitest + `supertest` | Latest stable |
+
+> [!IMPORTANT]
+> **Express.js v5 Key Change:** Express 5 introduces native `async/await` error propagation — unhandled promise rejections in route handlers are automatically forwarded to the error middleware without requiring `try/catch` blocks or manual `next(err)` calls. This significantly simplifies async route handler patterns across all domain modules.
+
+### 2.3 Shared Packages
+
+| Package | Purpose |
+| :--- | :--- |
+| `@crystal/ui` | Shared design system — shadcn/ui components + Tailwind CSS v4 tokens |
+| `@crystal/types` | Shared TypeScript interfaces, DTOs, and API response contracts |
+| `@crystal/validation` | Shared Zod schemas (used identically on frontend and backend) |
+| `@crystal/config` | Shared TypeScript, ESLint, Tailwind, and Vitest configurations |
+
+---
+
+## 3. Unified API as a Modular Monolith
 
 > [!IMPORTANT]
 > Crystal is deliberately designed **not** as a collection of microservices, but as a **Modular Monolith**.
-> It is **one single backend application** containing clearly separated internal logical modules. This keeps system complexity, operations, and infrastructure overhead low while establishing clean, decoupled boundaries between business domains.
+> It is **one single Express.js v5 application** containing clearly separated internal logical modules. This keeps system complexity, operations, and infrastructure overhead low while establishing clean, decoupled boundaries between business domains.
 
 ```text
-Crystal API (Modular Monolith)
+Crystal API — Express.js v5 (Modular Monolith)
 │
 ├── Authentication       (Session tokens, password hashing, MFA, JWT validation)
 ├── Users                (User profiles, account statuses, profile mutations)
@@ -140,7 +193,19 @@ Crystal API (Modular Monolith)
 └── Integrations         (Adapters for SES, Twilio, DocuSign, Cloudflare Stream, S3)
 ```
 
-### 2.1 Module Boundary Rules
+Each module follows an identical internal structure:
+
+```text
+src/modules/<module-name>/
+├── <module>.router.ts       # Express Router — route definitions & middleware chains
+├── <module>.controller.ts   # Request/response handler — thin, delegates to service
+├── <module>.service.ts      # Business logic & domain rules
+├── <module>.repository.ts   # Database queries (SQL via Drizzle ORM / pg)
+├── <module>.schema.ts       # Zod request validation schemas
+└── <module>.types.ts        # Module-local TypeScript types
+```
+
+### 3.1 Module Boundary Rules
 1. **Single Deployable Unit:** All modules are compiled, packaged, and deployed together as the Unified Crystal API.
 2. **Strict Internal Interfaces:** Modules communicate through documented TypeScript interfaces and domain service functions, never through ad-hoc raw queries bypassing domain rules.
 3. **No Inter-Service Network Calls:** Modules do not perform HTTP/gRPC roundtrips to communicate with each other; invocations occur in-process.
@@ -148,21 +213,21 @@ Crystal API (Modular Monolith)
 
 ---
 
-## 3. Frontend vs Backend vs Database Responsibilities
+## 4. Frontend vs Backend vs Database Responsibilities
 
 A clear boundary is enforced across all layers of the architecture:
 
 ```mermaid
 graph LR
-    subgraph Frontend["1. Next.js State Applications"]
-        F1["Page Layouts & Routing"]
+    subgraph Frontend["1. Vite + React SPA (per State)"]
+        F1["Page Layouts & Client-Side Routing"]
         F2["State Marketing & Content"]
         F3["UI Forms & Input Masking"]
-        F4["Client-side Validation"]
+        F4["Client-side Validation (Zod)"]
         F5["Presentation Logic & Themes"]
     end
 
-    subgraph Backend["2. Unified Crystal API"]
+    subgraph Backend["2. Unified Crystal API (Express.js v5)"]
         B1["Central Business Logic"]
         B2["Authorization & RBAC"]
         B3["State Access Control"]
@@ -186,13 +251,13 @@ graph LR
 
 | Layer | Component | Core Responsibilities | What It Must NOT Do |
 | :--- | :--- | :--- | :--- |
-| **Frontend** | **State Next.js Apps** (`apps/georgia`, `apps/indiana`) | • UI rendering & SSR marketing pages<br/>• Routing & navigation<br/>• State-specific text, licenses, disclosures<br/>• Form controls & user interaction state<br/>• Presentation-layer theming | • Duplicate business logic<br/>• Perform direct database writes<br/>• Handle third-party secrets (SES, Twilio)<br/>• Rely on client-only auth checks |
+| **Frontend** | **State Vite SPAs** (`apps/georgia`, `apps/indiana`) | • UI rendering & client-side routing<br/>• State-specific text, licenses, disclosures<br/>• Form controls & user interaction state<br/>• Presentation-layer theming | • Duplicate business logic<br/>• Perform direct database writes<br/>• Handle third-party secrets (SES, Twilio)<br/>• Rely on client-only auth checks |
 | **Backend** | **Unified Crystal API** (`apps/api`) | • Centralized business logic<br/>• Authentication & session verification<br/>• Role-based & state-based authorization<br/>• Server-side Zod validation<br/>• Workflows (quiz grading, cert generation)<br/>• External service orchestration | • Duplicate endpoints per state<br/>• Depend on frontend state for security<br/>• Split into microservices |
 | **Database & Storage** | **PostgreSQL 15+ / S3 / Supabase** | • Persistent relational data storage<br/>• PostgreSQL Row-Level Security (RLS)<br/>• Foreign key & check constraints<br/>• Encrypted document storage (AES-256)<br/>• Ephemeral presigned URL delivery | • Publicly expose unauthenticated files<br/>• Allow cross-tenant data queries |
 
 ---
 
-## 4. State & Organization Isolation Model
+## 5. State & Organization Isolation Model
 
 Crystal enforces strict multi-tenant isolation at both the **API layer** and the **database kernel layer**:
 
@@ -204,21 +269,35 @@ What role do they have?     → role = 'state_admin'
 What organization/state?    → org_id = 'org_ga_456' (Georgia / With Open Hands)
 What resources allowed?     → Only Georgia records (`org_id = org_ga_456`)
    ↓
-API Authorization Guard     → Validates role permissions and tenant scope
+Express.js verifyJWT()      → Validates JWT & attaches user context to req.user
+   ↓
+Express.js requireRole()    → Validates role permissions for the route
    ↓
 PostgreSQL Database RLS     → Enforces `USING (org_id = current_user_org())`
    ↓
 Georgia-Authorized Data Returned
 ```
 
-### 4.1 Isolation Guarantees
+### 5.1 Express.js Middleware Chain
+
+Every protected route passes through this ordered middleware stack:
+
+```text
+Request
+  → verifyJWT()           — Validate & decode Bearer token; attach req.user
+  → requireOrg()          — Ensure req.user.org_id is present and valid
+  → requireRole(...roles) — Check role against allowed list for the route
+  → Route Handler         — Business logic; org_id always sourced from req.user
+```
+
+### 5.2 Isolation Guarantees
 1. **No Client-Side Reliance:** A Georgia user or coordinator **cannot** query or mutate Indiana records simply by altering a request parameter, header, or URL.
 2. **Context Derivation:** State context is derived directly from the authenticated user session and validated organization membership, not from client-supplied parameters.
 3. **Database RLS as the Ultimate Barrier:** Even if an API handler had an omission in its SQL `WHERE` clause, PostgreSQL Row-Level Security ensures that unauthorized rows are physically invisible to the database session.
 
 ---
 
-## 5. Database Architecture & Data Model
+## 6. Database Architecture & Data Model
 
 A single centralized PostgreSQL 15+ database powers all state operations. All core entities explicitly establish tenant ownership via `org_id` foreign keys to the `organizations` table.
 
@@ -246,7 +325,7 @@ erDiagram
     COURSES ||--o{ TRAINING_RECORDS : "evaluates"
 ```
 
-### 5.1 Core Schema Entities
+### 6.1 Core Schema Entities
 
 #### `organizations` (Tenants / States)
 - `id` (UUID, PK)
@@ -302,7 +381,7 @@ erDiagram
 
 ---
 
-## 6. API Design & Shared Endpoints
+## 7. API Design & Shared Endpoints
 
 The Unified API exposes a standardized RESTful API under `/api/v1/`.
 
@@ -310,7 +389,7 @@ The Unified API exposes a standardized RESTful API under `/api/v1/`.
 > **Anti-Pattern:** Do **not** create duplicate state endpoints (e.g. `/api/georgia/caregivers` or `/api/indiana/caregivers`).
 > All state applications interact with the **same shared endpoints**. Organization context is resolved from the user's authentication token and backend permissions.
 
-### 6.1 Standard Shared Route Structure
+### 7.1 Standard Shared Route Structure
 
 ```text
 /api/v1/
@@ -357,9 +436,34 @@ The Unified API exposes a standardized RESTful API under `/api/v1/`.
     └── GET  /export (Export CSV/PDF report)
 ```
 
+### 7.2 Express.js v5 Route Registration Pattern
+
+Each domain module registers its own Express Router, mounted in `server.ts`:
+
+```typescript
+// apps/api/src/server.ts
+import express from 'express';
+import { authRouter } from './modules/auth/auth.router';
+import { caregiverRouter } from './modules/caregivers/caregiver.router';
+// ... all module routers
+
+const app = express();
+
+app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
+app.use('/api/v1/auth', authRouter);
+app.use('/api/v1/caregivers', verifyJWT, caregiverRouter);
+// ... all routes
+
+// Express v5: async errors auto-propagate to error handler
+app.use(globalErrorHandler);
+
+export default app;
+```
+
 ---
 
-## 7. Secure Document Management
+## 8. Secure Document Management
 
 Crystal processes sensitive caregiver PII and client PHI. Documents are never treated as static public assets.
 
@@ -367,8 +471,8 @@ Crystal processes sensitive caregiver PII and client PHI. Documents are never tr
 sequenceDiagram
     autonumber
     actor User as Caregiver / Client / Admin
-    participant App as State Next.js App
-    participant API as Unified Crystal API
+    participant App as State Vite SPA
+    participant API as Unified Crystal API (Express.js v5)
     participant DB as PostgreSQL (RLS)
     participant S3 as Secure Object Storage (S3 / Supabase)
 
@@ -398,7 +502,7 @@ sequenceDiagram
 
 ---
 
-## 8. Repository Structure (Monorepo Architecture)
+## 9. Repository Structure (Monorepo Architecture)
 
 The codebase is organized as a clean, unified monorepo separating **state frontends**, **the unified API**, **shared packages**, and **infrastructure**:
 
@@ -406,20 +510,32 @@ The codebase is organized as a clean, unified monorepo separating **state fronte
 crystal/
 │
 ├── apps/
-│   ├── georgia/                 # Next.js 14+ Frontend: Georgia (With Open Hands)
-│   │   ├── src/app/             # State-specific pages, layouts, and public marketing
-│   │   ├── src/components/      # GA-specific branding components
+│   ├── georgia/                 # Vite 8 + React 19 SPA: Georgia (With Open Hands)
+│   │   ├── src/
+│   │   │   ├── pages/           # Route-level page components (React Router v7)
+│   │   │   ├── components/      # GA-specific branding & feature components
+│   │   │   ├── hooks/           # Custom React hooks (TanStack Query, form hooks)
+│   │   │   ├── lib/             # API client, auth utilities, typed fetch wrappers
+│   │   │   └── main.tsx         # Vite SPA entrypoint
+│   │   ├── index.html           # Static SPA shell (served by Caddy)
+│   │   ├── vite.config.ts
 │   │   └── package.json
 │   │
-│   ├── indiana/                 # Next.js 14+ Frontend: Indiana (Cherish Open Arms)
-│   │   ├── src/app/             # State-specific pages, layouts, and public marketing
-│   │   ├── src/components/      # IN-specific branding components
+│   ├── indiana/                 # Vite 8 + React 19 SPA: Indiana (Cherish Open Arms)
+│   │   ├── src/
+│   │   │   ├── pages/
+│   │   │   ├── components/
+│   │   │   ├── hooks/
+│   │   │   ├── lib/
+│   │   │   └── main.tsx
+│   │   ├── index.html
+│   │   ├── vite.config.ts
 │   │   └── package.json
 │   │
-│   └── api/                     # Unified Crystal API (Modular Monolith)
+│   └── api/                     # Unified Crystal API (Express.js v5 — Modular Monolith)
 │       ├── src/
 │       │   ├── modules/         # Clearly separated backend domain modules
-│       │   │   ├── auth/
+│       │   │   ├── auth/        # auth.router.ts, auth.controller.ts, auth.service.ts, ...
 │       │   │   ├── users/
 │       │   │   ├── organizations/
 │       │   │   ├── caregivers/
@@ -432,21 +548,22 @@ crystal/
 │       │   │   ├── reports/
 │       │   │   └── audit/
 │       │   ├── integrations/    # External service adapters (SES, Twilio, DocuSign, S3)
-│       │   ├── middleware/      # Auth & state isolation middleware
-│       │   └── server.ts        # API entrypoint
+│       │   ├── middleware/      # verifyJWT, requireRole, requireOrg, globalErrorHandler
+│       │   ├── db/              # Database client, Drizzle schema, migration runner
+│       │   └── server.ts        # Express app entrypoint & router mount
 │       └── package.json
 │
 ├── packages/
-│   ├── ui/                      # Shared design system (shadcn/ui + Tailwind tokens)
+│   ├── ui/                      # Shared design system (shadcn/ui + Tailwind CSS v4 tokens)
 │   ├── types/                   # Shared TypeScript models, DTOs, and API contracts
 │   ├── validation/              # Shared Zod validation schemas
-│   └── config/                  # Shared TypeScript, ESLint, and Tailwind configurations
+│   └── config/                  # Shared TypeScript, ESLint, Tailwind, and Vitest configs
 │
 ├── db_schema/                   # Versioned SQL schema snapshots (db_schema_<date>_v<version>.sql)
 │
 ├── infrastructure/
 │   ├── docker/                  # Dockerfiles & Docker Compose configurations
-│   ├── caddy/                   # Caddy reverse proxy & TLS config
+│   ├── caddy/                   # Caddy config (SPA try_files + API reverse proxy + TLS)
 │   ├── supabase/                # PostgreSQL migrations, seed data, and RLS policies
 │   └── scripts/                 # Deployment, backup, and health check scripts
 │
@@ -455,9 +572,38 @@ crystal/
 └── turbo.json
 ```
 
+### 9.1 Caddy — SPA Routing & API Proxy Config
+
+Because Vite produces a static SPA (no Node.js server needed at runtime per state app), Caddy serves both the static files **and** proxies API traffic — eliminating per-state Node.js containers:
+
+```text
+withopenhands.com {
+    # Serve Georgia Vite SPA static build — try_files handles client-side routing
+    root * /srv/georgia/dist
+    try_files {path} /index.html
+    file_server
+}
+
+cherishopenarms.com {
+    # Serve Indiana Vite SPA static build
+    root * /srv/indiana/dist
+    try_files {path} /index.html
+    file_server
+}
+
+api.crystalhomecare.com {
+    # Proxy all traffic to Express.js v5 API
+    reverse_proxy localhost:4000
+}
+```
+
+> [!TIP]
+> The `try_files {path} /index.html` directive is critical — it ensures that deep links (e.g. `/dashboard/caregivers/123`) served by React Router are correctly handled by returning `index.html` instead of a 404.
+
+
 ---
 
-## 9. Self-Hosted AWS Deployment ($100 – $200 / month)
+## 10. Self-Hosted AWS Deployment (~$95 – $150 / month)
 
 ```mermaid
 graph TD
@@ -466,18 +612,18 @@ graph TD
             IGW["Internet Gateway"]
             
             subgraph EC2Host["EC2 Instance (t4g.xlarge - 4 vCPU, 16GB RAM)"]
-                CaddyProxy["Caddy Reverse Proxy (Auto SSL, Ports 80/443)"]
+                CaddyProxy["Caddy Reverse Proxy (Auto SSL, Ports 80/443)<br/>Serves SPA static builds + proxies API"]
                 
-                GA_App_C["Georgia Next.js Container (Port 3001)"]
-                IN_App_C["Indiana Next.js Container (Port 3002)"]
-                API_C["Unified Crystal API Container (Port 4000)"]
+                GA_Dist["Georgia Vite Build /srv/georgia/dist (Static Files)"]
+                IN_Dist["Indiana Vite Build /srv/indiana/dist (Static Files)"]
+                API_C["Unified Crystal API Container<br/>Express.js v5 (Port 4000)"]
                 
                 subgraph DBStack["PostgreSQL & Storage Stack"]
                     PostgresC["PostgreSQL 15 Container (with RLS & pgvector)"]
                     StorageC["Supabase Storage / Local Storage Engine"]
                 end
                 
-                CronWorker_C["Background Cron Worker Container"]
+                CronWorker_C["Background Cron (node-cron inside API process)"]
             end
             
             EBS["Encrypted EBS Volume (gp3 - 100GB Data & WAL)"]
@@ -489,12 +635,10 @@ graph TD
     end
 
     IGW --> CaddyProxy
-    CaddyProxy -- "withopenhands.com" --> GA_App_C
-    CaddyProxy -- "cherishopenarms.com" --> IN_App_C
-    CaddyProxy -- "api.crystalhomecare.com" --> API_C
+    CaddyProxy -- "withopenhands.com → static files" --> GA_Dist
+    CaddyProxy -- "cherishopenarms.com → static files" --> IN_Dist
+    CaddyProxy -- "api.crystalhomecare.com → proxy" --> API_C
     
-    GA_App_C --> API_C
-    IN_App_C --> API_C
     API_C --> PostgresC
     API_C --> StorageC
     PostgresC --> EBS
@@ -503,7 +647,10 @@ graph TD
     CronWorker_C --> SESService
 ```
 
-### 9.1 Monthly Cost Estimation
+> [!NOTE]
+> **Frontend containers eliminated:** Unlike a Next.js setup requiring Node.js containers per state app, Vite SPAs compile to **pure static files** (`index.html` + JS/CSS bundles). Caddy serves them directly from the filesystem — no additional compute containers needed per state. This reduces EC2 memory usage and simplifies deployment.
+
+### 10.1 Monthly Cost Estimation
 
 | Resource | Configuration | Monthly Cost |
 | :--- | :--- | :--- |
@@ -519,13 +666,13 @@ graph TD
 
 ---
 
-## 10. Security, HIPAA-Ready Controls & Auditability
+## 11. Security, HIPAA-Ready Controls & Auditability
 
 1. **Encryption Standards:**
    - **In-Transit:** TLS 1.3 mandatory across all endpoints enforced by Caddy with HSTS preloaded headers.
    - **At-Rest:** EBS and S3 volumes encrypted with AWS KMS AES-256 keys.
 2. **Access Control & Least Privilege:**
-   - API endpoints enforce strict role checks (`super_admin`, `state_admin`, `agency_staff`, `caregiver`, `client`).
+   - Express.js middleware chain enforces strict role checks (`super_admin`, `state_admin`, `agency_staff`, `caregiver`, `client`) on every protected route.
    - PostgreSQL RLS enforces physical row segregation by `org_id`.
 3. **Comprehensive Audit Trails:**
    - Every file download, credential verification, authorization update, and patient inspection writes an immutable record to `security_audit_logs`.

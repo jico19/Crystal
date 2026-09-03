@@ -11,7 +11,7 @@ The platform unifies two distinct state operating entities under a shared digita
 
 > [!IMPORTANT]
 > **Core Architectural Principle:**
-> Crystal uses multiple state-specific Next.js frontend applications that communicate with one centralized Unified API. The Unified API is a modular monolith and is responsible for shared backend functionality and business logic. State-specific applications must not create duplicate backend implementations unless explicitly justified.
+> Crystal uses multiple state-specific Vite 8 + React 19 SPA frontend applications that communicate with one centralized Express.js v5 Unified API (`apps/api`). The Unified API is a modular monolith and is responsible for shared backend functionality and business logic. State-specific applications must not create duplicate backend implementations unless explicitly justified.
 
 ---
 
@@ -21,9 +21,9 @@ The platform unifies two distinct state operating entities under a shared digita
 | :--- | :--- | :--- |
 | **Client** | Crystal | *With Open Hands* (GA) & *Cherish Open Arms* (IN) |
 | **Service Provider** | Johnrey Mansilungan | ST Business Consulting Network |
-| **Effective Date** | August 24, 2026 | Scope Version: 1 (Architectural Revision v2) |
+| **Effective Date** | August 24, 2026 | Scope Version: 1 (Architectural Revision v2 — Vite 8 + Express v5) |
 | **Estimated Timeline** | 8 – 12 Weeks | 6 Phased Sprints |
-| **Cloud Infra Budget** | $100 – $200 / month | Self-hosted AWS deployment model (EC2 + Docker Compose) |
+| **Cloud Infra Budget** | $100 – $200 / month | Self-hosted AWS deployment model (EC2 + Caddy + Docker Compose) |
 | **Optional Maintenance** | $200 / month | Bug fixes, security updates, monitoring, support |
 
 ---
@@ -35,18 +35,18 @@ Crystal implements a **Multi-State Frontend + Unified API + Centralized Backend 
 ```text
 Georgia Domain (withopenhands.com)
       ↓
-Georgia Next.js App
+Georgia Vite + React SPA
       │
       ├──────────────┐
       │              │
 Indiana Domain (cherishopenarms.com)
       ↓              │
-Indiana Next.js App  │
+Indiana Vite + React SPA  │
       │              │
       └──────┬───────┘
              ↓
       Unified Crystal API
-       (Modular Monolith)
+       (Express.js v5 — Modular Monolith)
              ↓
    ┌─────────┼──────────┐
    ↓         ↓          ↓
@@ -58,13 +58,13 @@ PostgreSQL Storage   External Services
 ### 3.1 State Frontends
 Each state/organization operates its own:
 - **Domain:** e.g., `withopenhands.com` (GA), `cherishopenarms.com` (IN)
-- **Next.js Application:** Tailored public pages, routing, navigation, and client-side presentation
+- **Vite 8 + React 19 SPA Application:** Tailored public pages, React Router v7 client-side routing, navigation, and client-side presentation
 - **State-Specific Website Content:** Services offered, local contact information, and executive leadership
 - **State-Specific Forms & Licensing Info:** State regulatory disclosures (e.g., Georgia DCH vs. Indiana FSSA), local office locations, and state license numbers
 - **State-Specific Frontend Configuration:** Custom color themes, logos, assets, and metadata
 
 ### 3.2 Unified API (Modular Monolith)
-The backend is built as a **single, unified application with cleanly separated internal modules** (not a set of microservices). It owns all centralized business logic, authentication, state isolation, compliance rules, validation, and data persistence.
+The backend is built as a **single, unified Express.js v5 application with cleanly separated internal modules** (not a set of microservices). It owns all centralized business logic, authentication, state isolation, compliance rules, validation, and data persistence.
 
 ### 3.3 Centralized Database & Infrastructure
 A single, centralized PostgreSQL database with Row-Level Security (RLS) hosts all tenant data with strict organization isolation. Secure object storage (Supabase Storage / AWS S3) protects sensitive documents.
@@ -75,7 +75,7 @@ A single, centralized PostgreSQL database with Row-Level Security (RLS) hosts al
 
 ```mermaid
 graph TD
-    UnifiedAPI["Unified Crystal API (Modular Monolith)"]
+    UnifiedAPI["Unified Crystal API (Express.js v5 Modular Monolith)"]
     
     subgraph Phase1["Phase 1 — In Scope"]
         GA["Georgia (GA)<br/>With Open Hands<br/>(withopenhands.com)"]
@@ -94,8 +94,8 @@ graph TD
 ```
 
 ### 4.1 Included in Phase 1
-- **State-Specific Next.js Frontend Applications:** Distinct web experiences for Georgia (*With Open Hands*) and Indiana (*Cherish Open Arms*).
-- **Unified Crystal API (Modular Monolith):** Shared backend application exposing standardized endpoints (`/api/v1/...`).
+- **State-Specific Vite 8 + React 19 SPA Frontend Applications:** Distinct web experiences for Georgia (*With Open Hands*) and Indiana (*Cherish Open Arms*).
+- **Unified Crystal API (Express.js v5 Modular Monolith):** Shared backend application exposing standardized endpoints (`/api/v1/...`).
 - **Dynamic State Switching & Navigation:** State switcher allowing users/clients to switch state contexts while preserving intent.
 - **State-Specific Compliance & Licensing Content:** Disclosures, regulatory forms, and services tailored per state.
 - **Lead Capture & Contact Form Integration:** Transitioning existing GoDaddy capture forms into a unified lead pipeline in PostgreSQL.
@@ -291,7 +291,7 @@ gantt
 ```
 
 1. **Phase 1 — Discovery & Unified Architecture (Weeks 1–2):** Finalize monorepo structure, unified API module boundaries, PostgreSQL schemas, RLS policies, and hosting topology.
-2. **Phase 2 — State Frontends & Platform Foundation (Weeks 3–4):** Georgia and Indiana Next.js apps, shared `packages/ui`, Unified API auth module, and public lead capture.
+2. **Phase 2 — State Frontends & Platform Foundation (Weeks 3–4):** Georgia and Indiana Vite 8 + React 19 SPAs, shared `packages/ui`, Unified Express.js v5 API auth module, and public lead capture.
 3. **Phase 3 — Caregiver Portal (Weeks 5–6):** Onboarding workflows, secure document uploader, credential expiration indexing, and admin verification views.
 4. **Phase 4 — In-Service Training & Compliance (Weeks 7–8):** Video player integration, quiz engine, automated PDF certificate issuance, and compliance reporting.
 5. **Phase 5 — Client Portal & E-Signatures (Weeks 9–10):** Digital intake forms, DocuSign/SignWell e-signing, authorization tracking, and client dashboards.

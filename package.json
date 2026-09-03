@@ -1,27 +1,14 @@
 {
-  "name": "crystal-monorepo",
-  "version": "1.0.0",
+  "name": "crystal-platform",
   "private": true,
-  "packageManager": "npm@11.13.0",
+  "version": "1.0.0",
+  "description": "Crystal Multi-State Home Care Platform",
   "workspaces": [
     "apps/*",
     "packages/*"
   ],
   "scripts": {
-    "dev": "turbo run dev",
-    "dev:ga": "npm run dev --workspace=@crystal/georgia",
-    "dev:in": "npm run dev --workspace=@crystal/indiana",
-    "dev:api": "npm run dev --workspace=@crystal/api",
-    "build": "turbo run build",
-    "test": "vitest run",
-    "lint": "turbo run lint"
-  },
-  "devDependencies": {
-    "@electric-sql/pglite": "^0.5.8",
-    "@next/swc-wasm-nodejs": "14.2.5",
-    "@next/swc-win32-x64-msvc": "14.2.5",
-    "turbo": "^2.0.14",
-    "typescript": "^5.5.4",
-    "vitest": "^2.0.5"
+    "db:setup": "npm --prefix apps/api run db:setup",
+    "build": "echo \"Placeholder root build script\""
   }
 }
