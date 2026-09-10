@@ -144,37 +144,22 @@ export const StateFooter: React.FC = () => {
         {/* Column 3: Secured Portals & Careers */}
         <div className="space-y-3">
           <h4 className="text-xs font-bold uppercase tracking-wider text-white border-b border-slate-800/80 pb-2">
-            Portals & Opportunities
+            Portals & Careers
           </h4>
-          <ul className="space-y-2 text-xs">
+          <ul className="space-y-2.5 text-xs">
             <li>
-              <Link to="/caregiver/portal" className="hover:text-teal-400 transition-colors flex items-center gap-1.5 font-medium text-slate-300">
+              <Link to="/login" className="hover:text-teal-400 transition-colors flex items-center gap-1.5 font-medium text-slate-300">
                 <span className="w-1.5 h-1.5 rounded-full bg-teal-400"></span>
-                <span>Caregiver Onboarding Portal</span>
+                <span>Secured Care Portal Login</span>
               </Link>
             </li>
             <li>
-              <Link to="/portal/client" className="hover:text-teal-400 transition-colors flex items-center gap-1.5 font-medium text-slate-300">
-                <span className="w-1.5 h-1.5 rounded-full bg-blue-400"></span>
-                <span>Client & Family Care Portal</span>
+              <Link to="/apply" className="inline-flex items-center gap-1 text-teal-400 hover:text-teal-300 font-bold transition-colors">
+                <span>Caregiver Careers & Online Application &rarr;</span>
               </Link>
             </li>
-            <li>
-              <Link to="/clients" className="hover:text-teal-400 transition-colors flex items-center gap-1.5 font-medium text-slate-300">
-                <span className="w-1.5 h-1.5 rounded-full bg-purple-400"></span>
-                <span>Staff Client Operations & Auths</span>
-              </Link>
-            </li>
-            <li>
-              <Link to="/admin" className="hover:text-teal-400 transition-colors flex items-center gap-1.5 font-medium text-slate-300">
-                <span className="w-1.5 h-1.5 rounded-full bg-amber-400"></span>
-                <span>Multi-State Command Center</span>
-              </Link>
-            </li>
-            <li>
-              <Link to="/apply" className="inline-flex items-center gap-1 text-teal-400 hover:text-teal-300 font-bold transition-colors mt-1">
-                <span>Apply as a Caregiver (Online Application) &rarr;</span>
-              </Link>
+            <li className="pt-2 text-[11px] text-slate-400 leading-relaxed border-t border-slate-800/60">
+              Single unified sign-in for caregivers, client families, clinical coordinators, and agency staff.
             </li>
           </ul>
         </div>

@@ -9,14 +9,12 @@ import {
   ChevronDown,
   ShieldCheck,
   Lock,
-  UserCheck,
-  Users,
-  LayoutDashboard,
-  CalendarClock,
   Sparkles,
   ArrowRight,
+  LogOut,
 } from 'lucide-react';
 import { useOrgTheme } from '../../lib/OrgThemeContext.tsx';
+import { getCurrentUser, getDesignatedRoute, getAllowedPortals } from '../../lib/auth-helpers.ts';
 
 export const StateHeader: React.FC = () => {
   const { org } = useOrgTheme();
@@ -81,54 +79,9 @@ export const StateHeader: React.FC = () => {
     { label: 'Contact', path: '/contact' },
   ];
 
-  const userStr = typeof window !== 'undefined' ? localStorage.getItem('crystal_user') : null;
-  let currentUser: { email?: string; role?: string } | null = null;
-  if (userStr) {
-    try {
-      currentUser = JSON.parse(userStr);
-    } catch {
-      currentUser = null;
-    }
-  }
-
-  const allPortalItems = [
-    {
-      label: 'Caregiver Portal',
-      desc: 'Shifts, credential vault & in-service training',
-      path: '/caregiver/portal',
-      icon: UserCheck,
-      color: 'text-teal-400 bg-teal-500/10',
-      roles: ['super_admin', 'agency_admin', 'caregiver', 'registered_nurse'],
-    },
-    {
-      label: 'Client & Family Portal',
-      desc: 'Care plans, schedules, authorizations & visits',
-      path: '/portal/client',
-      icon: CalendarClock,
-      color: 'text-blue-400 bg-blue-500/10',
-      roles: ['super_admin', 'agency_admin', 'care_coordinator', 'registered_nurse', 'caregiver'],
-    },
-    {
-      label: 'Client Operations',
-      desc: 'Clinical intake, assessments & 15-min burndown',
-      path: '/clients',
-      icon: Users,
-      color: 'text-purple-400 bg-purple-500/10',
-      roles: ['super_admin', 'agency_admin', 'care_coordinator', 'registered_nurse'],
-    },
-    {
-      label: 'Admin Command Center',
-      desc: 'Multi-state analytics, audits & survey exports',
-      path: '/admin',
-      icon: LayoutDashboard,
-      color: 'text-amber-400 bg-amber-500/10',
-      roles: ['super_admin', 'agency_admin'],
-    },
-  ];
-
-  const portalItems = currentUser
-    ? allPortalItems.filter((p) => p.roles.includes(currentUser?.role || ''))
-    : allPortalItems;
+  const currentUser = getCurrentUser();
+  const allowedPortals = getAllowedPortals(currentUser?.role);
+  const designatedRoute = getDesignatedRoute(currentUser?.role);
 
   return (
     <header className="sticky top-0 z-50 bg-slate-950/95 backdrop-blur-md border-b border-slate-800/80 text-white transition-all shadow-lg">
@@ -273,83 +226,96 @@ export const StateHeader: React.FC = () => {
 
         {/* Action Controls & Portals Dropdown */}
         <div className="flex items-center space-x-3">
-          {/* Portals Menu Dropdown */}
-          <div className="relative hidden sm:block" ref={portalMenuRef}>
-            <button
-              onClick={() => setPortalDropdownOpen(!portalDropdownOpen)}
-              className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-slate-900 hover:bg-slate-800 text-slate-200 hover:text-white text-xs font-semibold border border-slate-700/80 shadow-sm transition-all cursor-pointer"
-              aria-expanded={portalDropdownOpen}
+          {/* Portals Access Control: Direct login if guest, user dropdown if authenticated */}
+          {!currentUser ? (
+            <Link
+              to="/login"
+              className="hidden sm:inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-slate-900 hover:bg-slate-800 text-slate-200 hover:text-white text-xs font-semibold border border-slate-700/80 shadow-sm transition-all cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-teal-400"
             >
               <Lock className="w-3.5 h-3.5 text-teal-400" />
-              <span>Care Portals</span>
-              <ChevronDown className="w-3.5 h-3.5 text-slate-400" />
-            </button>
-
-            {portalDropdownOpen && (
-              <div className="absolute right-0 mt-2 w-80 rounded-2xl bg-slate-900 border border-slate-800 shadow-2xl p-2.5 z-50 space-y-1">
-                <div className="px-3 py-2 border-b border-slate-800/80 flex items-center justify-between">
-                  <div>
-                    <span className="text-xs font-bold text-white uppercase tracking-wider block">
-                      Secured Portals
-                    </span>
-                    {currentUser && (
-                      <span className="text-[10px] text-slate-400">
-                        Role: <strong className="text-teal-400 uppercase">{currentUser.role?.replace('_', ' ')}</strong>
-                      </span>
-                    )}
-                  </div>
-                  <span className="text-[10px] text-teal-400 font-medium">HIPAA Compliant</span>
+              <span>Portal Login</span>
+            </Link>
+          ) : (
+            <div className="relative hidden sm:block" ref={portalMenuRef}>
+              <button
+                onClick={() => setPortalDropdownOpen(!portalDropdownOpen)}
+                className="inline-flex items-center gap-2 px-3 py-1.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-slate-200 hover:text-white text-xs font-medium border border-teal-500/40 shadow-sm transition-all cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-teal-400"
+                aria-expanded={portalDropdownOpen}
+              >
+                <div className="w-6 h-6 rounded-lg bg-teal-500/20 text-teal-300 font-bold flex items-center justify-center text-[10px] uppercase border border-teal-500/30">
+                  {currentUser.email?.charAt(0) || 'U'}
                 </div>
+                <div className="text-left hidden lg:block">
+                  <span className="block text-[11px] font-semibold text-white truncate max-w-[120px]">
+                    {currentUser.email}
+                  </span>
+                  <span className="block text-[9px] text-teal-400 font-bold uppercase tracking-wider">
+                    {currentUser.role?.replace('_', ' ')}
+                  </span>
+                </div>
+                <ChevronDown className="w-3.5 h-3.5 text-slate-400" />
+              </button>
 
-                {portalItems.map((p) => {
-                  const Icon = p.icon;
-                  return (
+              {portalDropdownOpen && (
+                <div className="absolute right-0 mt-2 w-72 rounded-2xl bg-slate-900 border border-slate-800 shadow-2xl p-2.5 z-50 space-y-2">
+                  <div className="px-3 py-2 border-b border-slate-800/80">
+                    <span className="text-[10px] text-slate-400 uppercase tracking-wider block">Signed in as</span>
+                    <span className="text-xs font-semibold text-white block truncate">{currentUser.email}</span>
+                    <span className="inline-block mt-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-teal-500/10 text-teal-300 border border-teal-500/20 uppercase">
+                      {currentUser.role?.replace('_', ' ')}
+                    </span>
+                  </div>
+
+                  <div>
                     <Link
-                      key={p.path}
-                      to={p.path}
+                      to={designatedRoute}
                       onClick={() => setPortalDropdownOpen(false)}
-                      className="flex items-start gap-3 p-2.5 rounded-xl hover:bg-slate-800/80 transition-colors group"
+                      className="flex items-center justify-between p-2.5 rounded-xl bg-teal-500/10 border border-teal-500/30 text-xs font-semibold text-teal-300 hover:bg-teal-500/20 transition-colors"
                     >
-                      <div className={`p-2 rounded-lg ${p.color} shrink-0 mt-0.5`}>
-                        <Icon className="w-4 h-4" />
-                      </div>
-                      <div>
-                        <div className="text-xs font-semibold text-white group-hover:text-teal-300 flex items-center gap-1">
-                          <span>{p.label}</span>
-                          <ArrowRight className="w-3 h-3 opacity-0 group-hover:opacity-100 transition-opacity" />
-                        </div>
-                        <p className="text-[11px] text-slate-400 leading-snug mt-0.5">{p.desc}</p>
-                      </div>
+                      <span>My Primary Workspace</span>
+                      <ArrowRight className="w-3.5 h-3.5" />
                     </Link>
-                  );
-                })}
+                  </div>
 
-                <div className="pt-2 border-t border-slate-800/80">
-                  {currentUser ? (
+                  {allowedPortals.filter((p) => p.path !== designatedRoute).length > 0 && (
+                    <div className="pt-2 border-t border-slate-800/80 space-y-1">
+                      <span className="text-[10px] text-slate-500 font-bold uppercase tracking-wider px-2 block">
+                        Switch Portal
+                      </span>
+                      {allowedPortals
+                        .filter((p) => p.path !== designatedRoute)
+                        .map((p) => (
+                          <Link
+                            key={p.path}
+                            to={p.path}
+                            onClick={() => setPortalDropdownOpen(false)}
+                            className="flex items-center justify-between p-2 rounded-lg hover:bg-slate-800 text-xs text-slate-300 hover:text-white transition-colors"
+                          >
+                            <span>{p.label}</span>
+                            <ArrowRight className="w-3 h-3 text-slate-500" />
+                          </Link>
+                        ))}
+                    </div>
+                  )}
+
+                  <div className="pt-2 border-t border-slate-800/80">
                     <button
                       onClick={() => {
                         localStorage.removeItem('crystal_jwt');
                         localStorage.removeItem('crystal_user');
                         setPortalDropdownOpen(false);
-                        window.location.href = '/auth/login';
+                        window.location.href = '/login';
                       }}
-                      className="w-full text-center py-2 rounded-lg bg-red-500/10 hover:bg-red-500/20 text-red-400 border border-red-500/30 text-xs font-semibold shadow-sm transition-colors cursor-pointer"
+                      className="w-full flex items-center justify-center gap-1.5 py-2 rounded-lg bg-red-500/10 hover:bg-red-500/20 text-red-400 border border-red-500/30 text-xs font-semibold transition-colors cursor-pointer"
                     >
-                      Sign Out ({currentUser.email})
+                      <LogOut className="w-3.5 h-3.5" />
+                      <span>Sign Out</span>
                     </button>
-                  ) : (
-                    <Link
-                      to="/auth/login"
-                      onClick={() => setPortalDropdownOpen(false)}
-                      className="block text-center py-2 rounded-lg bg-teal-600 hover:bg-teal-500 text-white text-xs font-semibold shadow-sm transition-colors"
-                    >
-                      Portal Login / Sign In
-                    </Link>
-                  )}
+                  </div>
                 </div>
-              </div>
-            )}
-          </div>
+              )}
+            </div>
+          )}
 
           {/* Primary Action Button */}
           <Link
@@ -398,28 +364,51 @@ export const StateHeader: React.FC = () => {
             ))}
           </div>
 
-          {/* Mobile Portals Direct Links */}
-          <div className="p-3 rounded-2xl bg-slate-900/80 border border-slate-800 space-y-2">
-            <div className="text-[11px] font-bold uppercase tracking-wider text-slate-400 px-1">
-              Secured Clinical Portals
-            </div>
-            <div className="grid grid-cols-2 gap-2">
-              {portalItems.map((p) => {
-                const Icon = p.icon;
-                return (
+          {/* Mobile Portals Direct Access */}
+          {currentUser ? (
+            <div className="p-3 rounded-2xl bg-slate-900/80 border border-slate-800 space-y-2">
+              <div className="flex items-center justify-between px-1">
+                <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400">
+                  My Portal Access
+                </span>
+                <span className="text-[10px] text-teal-400 font-bold uppercase">
+                  {currentUser.role?.replace('_', ' ')}
+                </span>
+              </div>
+              <Link
+                to={designatedRoute}
+                onClick={() => setMobileMenuOpen(false)}
+                className="flex items-center justify-between p-2.5 rounded-xl bg-teal-500/10 border border-teal-500/30 text-xs font-semibold text-teal-300"
+              >
+                <span>My Primary Workspace</span>
+                <ArrowRight className="w-3.5 h-3.5" />
+              </Link>
+              {allowedPortals
+                .filter((p) => p.path !== designatedRoute)
+                .map((p) => (
                   <Link
                     key={p.path}
                     to={p.path}
                     onClick={() => setMobileMenuOpen(false)}
-                    className="flex flex-col items-start p-2.5 rounded-xl bg-slate-950 border border-slate-800/80 hover:border-teal-500/40 text-left transition-colors"
+                    className="flex items-center justify-between p-2.5 rounded-xl bg-slate-950 border border-slate-800 text-xs text-slate-300"
                   >
-                    <Icon className="w-4 h-4 text-teal-400 mb-1" />
-                    <span className="text-xs font-semibold text-white">{p.label}</span>
+                    <span>{p.label}</span>
+                    <ArrowRight className="w-3.5 h-3.5 text-slate-500" />
                   </Link>
-                );
-              })}
+                ))}
             </div>
-          </div>
+          ) : (
+            <div className="p-3 rounded-2xl bg-slate-900/80 border border-slate-800">
+              <Link
+                to="/login"
+                onClick={() => setMobileMenuOpen(false)}
+                className="flex items-center justify-center gap-2 p-2.5 rounded-xl bg-slate-950 border border-slate-800 text-xs font-semibold text-slate-200 hover:text-white"
+              >
+                <Lock className="w-3.5 h-3.5 text-teal-400" />
+                <span>Portal Login / Sign In</span>
+              </Link>
+            </div>
+          )}
 
           <div className="pt-2 space-y-2">
             <Link
@@ -429,26 +418,18 @@ export const StateHeader: React.FC = () => {
             >
               Request Free In-Home Assessment
             </Link>
-            {currentUser ? (
+            {currentUser && (
               <button
                 onClick={() => {
                   localStorage.removeItem('crystal_jwt');
                   localStorage.removeItem('crystal_user');
                   setMobileMenuOpen(false);
-                  window.location.href = '/auth/login';
+                  window.location.href = '/login';
                 }}
-                className="block text-center w-full py-2.5 rounded-xl bg-red-500/10 border border-red-500/20 text-xs font-semibold text-red-400"
+                className="block text-center w-full py-2.5 rounded-xl bg-red-500/10 border border-red-500/20 text-xs font-semibold text-red-400 cursor-pointer"
               >
-                Sign Out ({currentUser.email} - {currentUser.role?.replace('_', ' ')})
+                Sign Out ({currentUser.email})
               </button>
-            ) : (
-              <Link
-                to="/auth/login"
-                onClick={() => setMobileMenuOpen(false)}
-                className="block text-center w-full py-2.5 rounded-xl bg-slate-900 border border-slate-800 text-xs font-semibold text-slate-300"
-              >
-                Portal Login / Sign In
-              </Link>
             )}
           </div>
         </div>

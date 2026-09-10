@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { useOrgTheme } from '../../lib/OrgThemeContext.tsx';
 import {
   Lock,
@@ -11,10 +11,12 @@ import {
   CheckCircle2,
 } from 'lucide-react';
 import api from '../../lib/api.js';
+import { getDesignatedRoute } from '../../lib/auth-helpers.ts';
 
 export const LoginPage: React.FC = () => {
   const { org } = useOrgTheme();
   const navigate = useNavigate();
+  const location = useLocation();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -40,20 +42,17 @@ export const LoginPage: React.FC = () => {
 
       setMsg({
         type: 'success',
-        text: `Authenticated as ${user.email} (${user.role}). Redirecting...`,
+        text: `Authenticated as ${user.email} (${user.role?.replace('_', ' ')}). Redirecting...`,
       });
 
-      let destination: string;
-      if (user.role === 'super_admin' || user.role === 'agency_admin') {
-        destination = '/admin';
-      } else if (user.role === 'care_coordinator' || user.role === 'registered_nurse') {
-        destination = '/clients';
-      } else {
-        destination = '/caregiver/portal';
-      }
+      const stateFrom = (location.state as { from?: { pathname?: string } })?.from?.pathname;
+      const destination =
+        stateFrom && stateFrom !== '/auth/login' && stateFrom !== '/login' && stateFrom !== '/portal'
+          ? stateFrom
+          : getDesignatedRoute(user.role);
 
       setTimeout(() => {
-        navigate(destination);
+        navigate(destination, { replace: true });
       }, 500);
     } catch (err: unknown) {
       setMsg({
@@ -81,7 +80,7 @@ export const LoginPage: React.FC = () => {
           {org?.name || 'Crystal Healthcare Platform'}
         </h1>
         <p className="text-xs text-slate-400">
-          Secure sign-in for caregivers, clinical supervisors, and agency administrators.
+          Secure sign-in for caregivers, clients, family members, and clinical staff.
         </p>
       </div>
 

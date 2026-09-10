@@ -30,6 +30,7 @@ import { ClientSelfServicePortalPage } from './pages/clients/ClientSelfServicePo
 import { AdminCommandCenter } from './components/admin/AdminCommandCenter.tsx';
 import { RbacAdminPage } from './pages/admin/settings/RbacAdminPage.tsx';
 import { ProtectedRoute } from './components/auth/ProtectedRoute.tsx';
+import { PortalDispatcher } from './components/auth/PortalDispatcher.tsx';
 
 function ApplyWizardStepContainer() {
   const {
@@ -331,6 +332,15 @@ export default function App() {
             </PublicLayout>
           }
         />
+        <Route
+          path="/login"
+          element={
+            <PublicLayout>
+              <LoginPage />
+            </PublicLayout>
+          }
+        />
+        <Route path="/portal" element={<PortalDispatcher />} />
         {/* 5-Step Caregiver Application Wizard Route */}
         <Route path="/apply" element={<ApplyWizardLayout />}>
           <Route index element={<ApplyWizardStepContainer />} />
