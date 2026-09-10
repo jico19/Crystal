@@ -1,0 +1,11 @@
+{
+  "envelopeId": "58f57c48-d044-4b16-92a8-8d7b70ea89b3",
+  "title": "Georgia CCSP Client Service Agreement 2026",
+  "documentType": "service_agreement",
+  "recipientName": "Arthur Pendelton",
+  "fullLegalName": "Arthur Pendelton",
+  "signatureDataUrl": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAASwAAACWAQMAAACw1iMTAAAAA1BMVEUAAACnej3aAAAAAXRSTlMAQObYZgAAACpJREFUaN7twTEBAAAAwqD1T20ND6AAAAAAAAAAAAAAAAAAAAAAAAAAAONkKAAA4aNqVwAAAABJRU5ErkJggg==",
+  "tamperSha256": "709363307f4b446b53b423f234eb50e362ca30d95e7985920c66971115bb2307",
+  "consentTimestamp": "2026-09-06T14:13:18.663Z",
+  "signerIpAddress": "192.168.1.105"
+}

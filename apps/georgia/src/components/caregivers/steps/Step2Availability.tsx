@@ -20,7 +20,8 @@ import { AvailabilityStepSchema, type AvailabilityStepInput } from '@crystal/val
 
 export interface Step2AvailabilityProps {
   initialValues?: Partial<AvailabilityStepInput>;
-  onSuccess: () => void;
+  onSuccess: (data: AvailabilityStepInput) => void;
+  onAutosave?: (data: Partial<AvailabilityStepInput>) => void;
   onBack: () => void;
 }
 
@@ -54,6 +55,7 @@ const SHIFTS = [
 export const Step2Availability: React.FC<Step2AvailabilityProps> = ({
   initialValues,
   onSuccess,
+  onAutosave,
   onBack,
 }) => {
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -81,40 +83,22 @@ export const Step2Availability: React.FC<Step2AvailabilityProps> = ({
     },
   });
 
+  // Autosave to session on input change
+  React.useEffect(() => {
+    const subscription = watch((values) => {
+      onAutosave?.(values as Partial<AvailabilityStepInput>);
+    });
+    return () => subscription.unsubscribe();
+  }, [watch, onAutosave]);
+
   const travelMiles = watch('availability.willing_to_travel_miles');
   const maxHours = watch('availability.max_weekly_hours');
 
-  const onSubmit = async (data: AvailabilityStepInput) => {
+  const onSubmit = (data: AvailabilityStepInput) => {
     try {
       setIsSubmitting(true);
       setServerError(null);
-
-      const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:4000';
-      const token = localStorage.getItem('crystal_jwt') || 'dev-applicant-token';
-
-      const response = await fetch(`${apiUrl}/api/v1/caregivers/application/draft`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({
-          step: 2,
-          data,
-        }),
-      });
-
-      const json = await response.json();
-
-      if (!response.ok || !json.success) {
-        if (json.fieldErrors) {
-          const firstField = Object.keys(json.fieldErrors)[0];
-          throw new Error(json.fieldErrors[firstField][0]);
-        }
-        throw new Error(json.error || 'Failed to save availability progress');
-      }
-
-      onSuccess();
+      onSuccess(data);
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : 'An unexpected error occurred.';
       setServerError(message);

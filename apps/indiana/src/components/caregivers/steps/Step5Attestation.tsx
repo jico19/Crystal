@@ -15,16 +15,19 @@ import { LegalDisclosuresStepSchema, type LegalDisclosuresStepInput } from '@cry
 
 export interface Step5AttestationProps {
   initialValues?: Partial<LegalDisclosuresStepInput>;
-  onSuccess: (result: { profileId: string; status: string; submittedAt: string }) => void;
+  onSuccess: (data: LegalDisclosuresStepInput) => void;
+  onAutosave?: (data: Partial<LegalDisclosuresStepInput>) => void;
   onBack: () => void;
+  isSubmitting?: boolean;
 }
 
 export const Step5Attestation: React.FC<Step5AttestationProps> = ({
   initialValues,
   onSuccess,
+  onAutosave,
   onBack,
+  isSubmitting = false,
 }) => {
-  const [isSubmitting, setIsSubmitting] = useState(false);
   const [serverError, setServerError] = useState<string | null>(null);
 
   const {
@@ -45,53 +48,27 @@ export const Step5Attestation: React.FC<Step5AttestationProps> = ({
     },
   });
 
+  // Autosave to session on input change
+  React.useEffect(() => {
+    const subscription = watch((values) => {
+      onAutosave?.(values as Partial<LegalDisclosuresStepInput>);
+    });
+    return () => subscription.unsubscribe();
+  }, [watch, onAutosave]);
+
   const hasFelony = watch('felony_conviction');
   const typedSignature = watch('attestation_signature');
 
-  const onSubmit = async (data: LegalDisclosuresStepInput) => {
-    try {
-      setIsSubmitting(true);
-      setServerError(null);
-
-      const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:4000';
-      const token = localStorage.getItem('crystal_jwt') || 'dev-applicant-token';
-
-      const response = await fetch(`${apiUrl}/api/v1/caregivers/application/submit`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({
-          ...data,
-          attestation_timestamp: new Date().toISOString(),
-        }),
-      });
-
-      const json = await response.json();
-
-      if (!response.ok || !json.success) {
-        if (json.fieldErrors) {
-          const firstField = Object.keys(json.fieldErrors)[0];
-          throw new Error(json.fieldErrors[firstField][0]);
-        }
-        throw new Error(json.error || 'Application submission failed');
-      }
-
-      onSuccess(json.data);
-    } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : 'An unexpected error occurred.';
-      setServerError(message);
-    } finally {
-      setIsSubmitting(false);
-    }
+  const onSubmit = (data: LegalDisclosuresStepInput) => {
+    setServerError(null);
+    onSuccess(data);
   };
 
   return (
     <form onSubmit={handleSubmit(onSubmit)} className="space-y-8">
       <div className="border-b border-slate-800 pb-4">
         <h2 className="text-xl font-bold text-white flex items-center space-x-2">
-          <FileCheck className="w-5 h-5 text-blue-400" />
+          <FileCheck className="w-5 h-5 text-teal-400" />
           <span>Step 5: Legal Disclosures & Attestation</span>
         </h2>
         <p className="text-slate-400 text-xs mt-1">
@@ -115,7 +92,7 @@ export const Step5Attestation: React.FC<Step5AttestationProps> = ({
             id="workAuthCheckbox"
             disabled={isSubmitting}
             {...register('authorized_to_work_in_us')}
-            className="rounded bg-slate-800 border-slate-700 text-blue-600 focus:ring-blue-500 w-4 h-4 mt-1"
+            className="rounded bg-slate-800 border-slate-700 text-teal-600 focus:ring-teal-500 w-4 h-4 mt-1"
           />
           <label htmlFor="workAuthCheckbox" className="text-xs text-slate-300 cursor-pointer">
             <strong className="text-white block font-semibold">
@@ -139,11 +116,11 @@ export const Step5Attestation: React.FC<Step5AttestationProps> = ({
             id="backgroundCheckCheckbox"
             disabled={isSubmitting}
             {...register('background_check_consent')}
-            className="rounded bg-slate-800 border-slate-700 text-blue-600 focus:ring-blue-500 w-4 h-4 mt-1"
+            className="rounded bg-slate-800 border-slate-700 text-teal-600 focus:ring-teal-500 w-4 h-4 mt-1"
           />
           <label htmlFor="backgroundCheckCheckbox" className="text-xs text-slate-300 cursor-pointer">
             <strong className="text-white block font-semibold flex items-center space-x-1.5">
-              <ShieldCheck className="w-4 h-4 text-blue-400" />
+              <ShieldCheck className="w-4 h-4 text-teal-400" />
               <span>Criminal Background Check & MVR Consent *</span>
             </strong>
             <span className="text-slate-400 text-[11px] block mt-0.5">
@@ -164,7 +141,7 @@ export const Step5Attestation: React.FC<Step5AttestationProps> = ({
             id="drugScreenCheckbox"
             disabled={isSubmitting}
             {...register('drug_screen_consent')}
-            className="rounded bg-slate-800 border-slate-700 text-blue-600 focus:ring-blue-500 w-4 h-4 mt-1"
+            className="rounded bg-slate-800 border-slate-700 text-teal-600 focus:ring-teal-500 w-4 h-4 mt-1"
           />
           <label htmlFor="drugScreenCheckbox" className="text-xs text-slate-300 cursor-pointer">
             <strong className="text-white block font-semibold">
@@ -199,7 +176,7 @@ export const Step5Attestation: React.FC<Step5AttestationProps> = ({
               {...register('felony_conviction', {
                 setValueAs: (v) => v === 'true' || v === true,
               })}
-              className="text-blue-600 focus:ring-blue-500 w-4 h-4 bg-slate-800 border-slate-700"
+              className="text-teal-600 focus:ring-teal-500 w-4 h-4 bg-slate-800 border-slate-700"
             />
             <span className="font-medium text-slate-200">No</span>
           </label>
@@ -213,7 +190,7 @@ export const Step5Attestation: React.FC<Step5AttestationProps> = ({
               {...register('felony_conviction', {
                 setValueAs: (v) => v === 'true' || v === true,
               })}
-              className="text-blue-600 focus:ring-blue-500 w-4 h-4 bg-slate-800 border-slate-700"
+              className="text-teal-600 focus:ring-teal-500 w-4 h-4 bg-slate-800 border-slate-700"
             />
             <span className="font-medium text-slate-200">Yes</span>
           </label>
@@ -229,7 +206,7 @@ export const Step5Attestation: React.FC<Step5AttestationProps> = ({
               placeholder="Provide full disclosure explanation..."
               disabled={isSubmitting}
               {...register('felony_explanation')}
-              className="w-full px-3.5 py-2 rounded-lg bg-slate-950 border border-amber-500/40 text-white placeholder-slate-600 focus:outline-none focus:border-amber-500 text-xs disabled:opacity-50"
+              className="w-full px-3.5 py-2 rounded-lg bg-slate-950 border border-amber-500/40 text-white placeholder-slate-400 focus:outline-none focus:border-amber-500 focus-visible:ring-2 focus-visible:ring-amber-500 text-xs disabled:opacity-50"
             />
             {errors.felony_explanation && (
               <p className="text-xs text-red-400 mt-1">{errors.felony_explanation.message}</p>
@@ -241,7 +218,7 @@ export const Step5Attestation: React.FC<Step5AttestationProps> = ({
       {/* Digital Legal Signature Box */}
       <div className="p-5 rounded-xl bg-slate-900 border border-slate-800 space-y-4">
         <div className="flex items-center space-x-2">
-          <PenTool className="w-4 h-4 text-blue-400" />
+          <PenTool className="w-4 h-4 text-teal-400" />
           <h3 className="text-sm font-semibold text-white">Digital Attestation & Legal Signature</h3>
         </div>
 
@@ -259,7 +236,7 @@ export const Step5Attestation: React.FC<Step5AttestationProps> = ({
               placeholder="e.g. Jane Marie Doe"
               disabled={isSubmitting}
               {...register('attestation_signature')}
-              className="w-full px-3.5 py-2.5 rounded-lg bg-slate-950 border border-slate-800 text-white placeholder-slate-600 focus:outline-none focus:border-blue-500 text-sm font-serif italic disabled:opacity-50 tracking-wide"
+              className="w-full px-3.5 py-2.5 rounded-lg bg-slate-950 border border-slate-800 text-white placeholder-slate-400 focus:outline-none focus:border-teal-500 focus-visible:ring-2 focus-visible:ring-teal-400 text-sm font-serif italic disabled:opacity-50 tracking-wide"
             />
             {errors.attestation_signature && (
               <p className="text-xs text-red-400 mt-1">{errors.attestation_signature.message}</p>
@@ -268,7 +245,7 @@ export const Step5Attestation: React.FC<Step5AttestationProps> = ({
 
           <div>
             <label className="block text-xs font-medium text-slate-300 mb-1 flex items-center space-x-1">
-              <Calendar className="w-3 h-3 text-blue-400" />
+              <Calendar className="w-3 h-3 text-teal-400" />
               <span>Date</span>
             </label>
             <input
@@ -285,7 +262,7 @@ export const Step5Attestation: React.FC<Step5AttestationProps> = ({
         </div>
 
         {typedSignature && (
-          <div className="p-3 rounded-lg bg-blue-500/10 border border-blue-500/20 text-xs text-blue-300 font-serif italic">
+          <div className="p-3 rounded-lg bg-teal-500/10 border border-teal-500/20 text-xs text-teal-300 font-serif italic">
             Signed digitally: &quot;{typedSignature}&quot;
           </div>
         )}
@@ -306,7 +283,7 @@ export const Step5Attestation: React.FC<Step5AttestationProps> = ({
         <button
           type="submit"
           disabled={isSubmitting}
-          style={{ backgroundColor: 'var(--primary, #1E3A8A)' }}
+          style={{ backgroundColor: 'var(--primary, #0F766E)' }}
           className="inline-flex items-center space-x-2 px-8 py-3.5 rounded-xl text-white font-bold text-sm hover:brightness-110 transition-all shadow-xl disabled:opacity-50 cursor-pointer"
         >
           {isSubmitting ? (

@@ -111,16 +111,17 @@ export const ContactForm: React.FC<ContactFormProps> = ({
 
       {/* Full Name */}
       <div>
-        <label className="block text-xs font-medium text-slate-300 mb-1 flex items-center space-x-1">
+        <label htmlFor="contact-full-name" className="block text-xs font-medium text-slate-300 mb-1 flex items-center space-x-1">
           <User className="w-3.5 h-3.5 text-teal-400" />
           <span>Full Name *</span>
         </label>
         <input
+          id="contact-full-name"
           type="text"
           placeholder="Jane Doe"
           disabled={isSubmitting}
           {...register('full_name')}
-          className="w-full px-3 py-2 rounded bg-slate-800 border border-slate-700 text-white placeholder-slate-500 focus:outline-none focus:border-teal-500 text-sm disabled:opacity-50"
+          className="w-full px-3 py-2 rounded bg-slate-800 border border-slate-700 text-white placeholder-slate-400 focus:outline-none focus:border-teal-500 focus-visible:ring-2 focus-visible:ring-teal-400 text-sm disabled:opacity-50"
         />
         {errors.full_name && (
           <p className="text-xs text-red-400 mt-1">{errors.full_name.message}</p>
@@ -130,16 +131,17 @@ export const ContactForm: React.FC<ContactFormProps> = ({
       {/* Email & Phone Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div>
-          <label className="block text-xs font-medium text-slate-300 mb-1 flex items-center space-x-1">
+          <label htmlFor="contact-email" className="block text-xs font-medium text-slate-300 mb-1 flex items-center space-x-1">
             <Mail className="w-3.5 h-3.5 text-teal-400" />
             <span>Email Address *</span>
           </label>
           <input
+            id="contact-email"
             type="email"
             placeholder="jane@example.com"
             disabled={isSubmitting}
             {...register('email')}
-            className="w-full px-3 py-2 rounded bg-slate-800 border border-slate-700 text-white placeholder-slate-500 focus:outline-none focus:border-teal-500 text-sm disabled:opacity-50"
+            className="w-full px-3 py-2 rounded bg-slate-800 border border-slate-700 text-white placeholder-slate-400 focus:outline-none focus:border-teal-500 focus-visible:ring-2 focus-visible:ring-teal-400 text-sm disabled:opacity-50"
           />
           {errors.email && (
             <p className="text-xs text-red-400 mt-1">{errors.email.message}</p>
@@ -147,16 +149,17 @@ export const ContactForm: React.FC<ContactFormProps> = ({
         </div>
 
         <div>
-          <label className="block text-xs font-medium text-slate-300 mb-1 flex items-center space-x-1">
+          <label htmlFor="contact-phone" className="block text-xs font-medium text-slate-300 mb-1 flex items-center space-x-1">
             <Phone className="w-3.5 h-3.5 text-teal-400" />
             <span>Phone Number *</span>
           </label>
           <input
+            id="contact-phone"
             type="tel"
             placeholder="(555) 234-5678"
             disabled={isSubmitting}
             {...register('phone')}
-            className="w-full px-3 py-2 rounded bg-slate-800 border border-slate-700 text-white placeholder-slate-500 focus:outline-none focus:border-teal-500 text-sm disabled:opacity-50"
+            className="w-full px-3 py-2 rounded bg-slate-800 border border-slate-700 text-white placeholder-slate-400 focus:outline-none focus:border-teal-500 focus-visible:ring-2 focus-visible:ring-teal-400 text-sm disabled:opacity-50"
           />
           {errors.phone && (
             <p className="text-xs text-red-400 mt-1">{errors.phone.message}</p>
@@ -166,14 +169,15 @@ export const ContactForm: React.FC<ContactFormProps> = ({
 
       {/* Inquiry Type */}
       <div>
-        <label className="block text-xs font-medium text-slate-300 mb-1 flex items-center space-x-1">
+        <label htmlFor="contact-inquiry-type" className="block text-xs font-medium text-slate-300 mb-1 flex items-center space-x-1">
           <MessageSquare className="w-3.5 h-3.5 text-teal-400" />
           <span>Inquiry Type *</span>
         </label>
         <select
+          id="contact-inquiry-type"
           disabled={isSubmitting}
           {...register('inquiry_type')}
-          className="w-full px-3 py-2 rounded bg-slate-800 border border-slate-700 text-white focus:outline-none focus:border-teal-500 text-sm disabled:opacity-50"
+          className="w-full px-3 py-2 rounded bg-slate-800 border border-slate-700 text-white focus:outline-none focus:border-teal-500 focus-visible:ring-2 focus-visible:ring-teal-400 text-sm disabled:opacity-50"
         >
           <option value="general_question">General Question</option>
           <option value="client_care_inquiry">Inquiring for Client Home Care</option>
@@ -186,13 +190,14 @@ export const ContactForm: React.FC<ContactFormProps> = ({
 
       {/* Message */}
       <div>
-        <label className="block text-xs font-medium text-slate-300 mb-1">Message *</label>
+        <label htmlFor="contact-message" className="block text-xs font-medium text-slate-300 mb-1">Message *</label>
         <textarea
+          id="contact-message"
           rows={4}
           placeholder="How can we help you or your family member?"
           disabled={isSubmitting}
           {...register('message')}
-          className="w-full px-3 py-2 rounded bg-slate-800 border border-slate-700 text-white placeholder-slate-500 focus:outline-none focus:border-teal-500 text-sm disabled:opacity-50"
+          className="w-full px-3 py-2 rounded bg-slate-800 border border-slate-700 text-white placeholder-slate-400 focus:outline-none focus:border-teal-500 focus-visible:ring-2 focus-visible:ring-teal-400 text-sm disabled:opacity-50"
         />
         {errors.message && (
           <p className="text-xs text-red-400 mt-1">{errors.message.message}</p>

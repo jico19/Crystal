@@ -1,5 +1,5 @@
 import React from 'react';
-import { Link } from 'react-router';
+import { Link } from 'react-router-dom';
 import { useOrgTheme } from '../../lib/OrgThemeContext.tsx';
 import { ContactForm } from '../../components/forms/ContactForm.tsx';
 import {

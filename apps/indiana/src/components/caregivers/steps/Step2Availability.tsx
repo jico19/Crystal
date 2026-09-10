@@ -20,7 +20,8 @@ import { AvailabilityStepSchema, type AvailabilityStepInput } from '@crystal/val
 
 export interface Step2AvailabilityProps {
   initialValues?: Partial<AvailabilityStepInput>;
-  onSuccess: () => void;
+  onSuccess: (data: AvailabilityStepInput) => void;
+  onAutosave?: (data: Partial<AvailabilityStepInput>) => void;
   onBack: () => void;
 }
 
@@ -54,6 +55,7 @@ const SHIFTS = [
 export const Step2Availability: React.FC<Step2AvailabilityProps> = ({
   initialValues,
   onSuccess,
+  onAutosave,
   onBack,
 }) => {
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -81,40 +83,22 @@ export const Step2Availability: React.FC<Step2AvailabilityProps> = ({
     },
   });
 
+  // Autosave to session on input change
+  React.useEffect(() => {
+    const subscription = watch((values) => {
+      onAutosave?.(values as Partial<AvailabilityStepInput>);
+    });
+    return () => subscription.unsubscribe();
+  }, [watch, onAutosave]);
+
   const travelMiles = watch('availability.willing_to_travel_miles');
   const maxHours = watch('availability.max_weekly_hours');
 
-  const onSubmit = async (data: AvailabilityStepInput) => {
+  const onSubmit = (data: AvailabilityStepInput) => {
     try {
       setIsSubmitting(true);
       setServerError(null);
-
-      const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:4000';
-      const token = localStorage.getItem('crystal_jwt') || 'dev-applicant-token';
-
-      const response = await fetch(`${apiUrl}/api/v1/caregivers/application/draft`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({
-          step: 2,
-          data,
-        }),
-      });
-
-      const json = await response.json();
-
-      if (!response.ok || !json.success) {
-        if (json.fieldErrors) {
-          const firstField = Object.keys(json.fieldErrors)[0];
-          throw new Error(json.fieldErrors[firstField][0]);
-        }
-        throw new Error(json.error || 'Failed to save availability progress');
-      }
-
-      onSuccess();
+      onSuccess(data);
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : 'An unexpected error occurred.';
       setServerError(message);
@@ -127,7 +111,7 @@ export const Step2Availability: React.FC<Step2AvailabilityProps> = ({
     <form onSubmit={handleSubmit(onSubmit)} className="space-y-8">
       <div className="border-b border-slate-800 pb-4">
         <h2 className="text-xl font-bold text-white flex items-center space-x-2">
-          <Calendar className="w-5 h-5 text-blue-400" />
+          <Calendar className="w-5 h-5 text-teal-400" />
           <span>Step 2: Availability & Positions Applied</span>
         </h2>
         <p className="text-slate-400 text-xs mt-1">
@@ -145,7 +129,7 @@ export const Step2Availability: React.FC<Step2AvailabilityProps> = ({
       {/* Target Roles Selection */}
       <div className="space-y-3">
         <div className="flex items-center space-x-2">
-          <Briefcase className="w-4 h-4 text-blue-400" />
+          <Briefcase className="w-4 h-4 text-teal-400" />
           <h3 className="text-sm font-semibold text-white">Target Position(s) Applied *</h3>
         </div>
         <p className="text-xs text-slate-400">Select all roles you are certified or experienced to perform.</p>
@@ -170,14 +154,14 @@ export const Step2Availability: React.FC<Step2AvailabilityProps> = ({
                     }}
                     className={`p-3.5 rounded-xl border text-left transition-all cursor-pointer flex items-start space-x-3 ${
                       isSelected
-                        ? 'border-blue-500 bg-blue-500/10 text-white ring-1 ring-blue-500'
+                        ? 'border-teal-500 bg-teal-500/10 text-white ring-1 ring-teal-500'
                         : 'border-slate-800 bg-slate-900 text-slate-300 hover:border-slate-700'
                     }`}
                   >
                     <div
                       className={`w-5 h-5 rounded flex items-center justify-center shrink-0 mt-0.5 border ${
                         isSelected
-                          ? 'bg-blue-600 border-blue-500 text-white'
+                          ? 'bg-teal-600 border-teal-500 text-white'
                           : 'border-slate-700 bg-slate-800'
                       }`}
                     >
@@ -206,7 +190,7 @@ export const Step2Availability: React.FC<Step2AvailabilityProps> = ({
             <input
               type="checkbox"
               {...register('availability.full_time')}
-              className="rounded bg-slate-800 border-slate-700 text-blue-600 focus:ring-blue-500 w-4 h-4"
+              className="rounded bg-slate-800 border-slate-700 text-teal-600 focus:ring-teal-500 w-4 h-4"
             />
             <span>Full-Time (32+ hrs/wk)</span>
           </label>
@@ -214,7 +198,7 @@ export const Step2Availability: React.FC<Step2AvailabilityProps> = ({
             <input
               type="checkbox"
               {...register('availability.part_time')}
-              className="rounded bg-slate-800 border-slate-700 text-blue-600 focus:ring-blue-500 w-4 h-4"
+              className="rounded bg-slate-800 border-slate-700 text-teal-600 focus:ring-teal-500 w-4 h-4"
             />
             <span>Part-Time (&lt;32 hrs/wk)</span>
           </label>
@@ -222,7 +206,7 @@ export const Step2Availability: React.FC<Step2AvailabilityProps> = ({
             <input
               type="checkbox"
               {...register('availability.prn')}
-              className="rounded bg-slate-800 border-slate-700 text-blue-600 focus:ring-blue-500 w-4 h-4"
+              className="rounded bg-slate-800 border-slate-700 text-teal-600 focus:ring-teal-500 w-4 h-4"
             />
             <span>PRN / As-Needed</span>
           </label>
@@ -232,7 +216,7 @@ export const Step2Availability: React.FC<Step2AvailabilityProps> = ({
       {/* Available Days */}
       <div className="space-y-3 pt-4 border-t border-slate-800">
         <div className="flex items-center space-x-2">
-          <Calendar className="w-4 h-4 text-blue-400" />
+          <Calendar className="w-4 h-4 text-teal-400" />
           <h3 className="text-sm font-semibold text-white">Available Working Days *</h3>
         </div>
 
@@ -256,7 +240,7 @@ export const Step2Availability: React.FC<Step2AvailabilityProps> = ({
                     }}
                     className={`w-12 h-10 rounded-lg border text-xs font-semibold transition-all cursor-pointer flex items-center justify-center ${
                       isSelected
-                        ? 'border-blue-500 bg-blue-500/20 text-blue-300 ring-1 ring-blue-500'
+                        ? 'border-teal-500 bg-teal-500/20 text-teal-300 ring-1 ring-teal-500'
                         : 'border-slate-800 bg-slate-900 text-slate-400 hover:border-slate-700'
                     }`}
                   >
@@ -275,7 +259,7 @@ export const Step2Availability: React.FC<Step2AvailabilityProps> = ({
       {/* Shift Preferences */}
       <div className="space-y-3 pt-4 border-t border-slate-800">
         <div className="flex items-center space-x-2">
-          <Clock className="w-4 h-4 text-blue-400" />
+          <Clock className="w-4 h-4 text-teal-400" />
           <h3 className="text-sm font-semibold text-white">Available Shifts *</h3>
         </div>
 
@@ -300,11 +284,11 @@ export const Step2Availability: React.FC<Step2AvailabilityProps> = ({
                     }}
                     className={`p-3 rounded-lg border text-left transition-all cursor-pointer flex items-center space-x-2.5 ${
                       isSelected
-                        ? 'border-blue-500 bg-blue-500/10 text-white ring-1 ring-blue-500'
+                        ? 'border-teal-500 bg-teal-500/10 text-white ring-1 ring-teal-500'
                         : 'border-slate-800 bg-slate-900 text-slate-400 hover:border-slate-700'
                     }`}
                   >
-                    <Icon className="w-4 h-4 text-blue-400 shrink-0" />
+                    <Icon className="w-4 h-4 text-teal-400 shrink-0" />
                     <span className="text-xs font-medium">{sh.label}</span>
                   </button>
                 );
@@ -322,10 +306,10 @@ export const Step2Availability: React.FC<Step2AvailabilityProps> = ({
         <div>
           <div className="flex justify-between items-center mb-2">
             <label className="text-xs font-semibold text-slate-300 flex items-center space-x-1.5">
-              <Compass className="w-3.5 h-3.5 text-blue-400" />
+              <Compass className="w-3.5 h-3.5 text-teal-400" />
               <span>Travel Radius:</span>
             </label>
-            <span className="text-xs font-bold text-blue-400">{travelMiles} miles</span>
+            <span className="text-xs font-bold text-teal-400">{travelMiles} miles</span>
           </div>
           <input
             type="range"
@@ -333,7 +317,7 @@ export const Step2Availability: React.FC<Step2AvailabilityProps> = ({
             max={100}
             step={5}
             {...register('availability.willing_to_travel_miles', { valueAsNumber: true })}
-            className="w-full h-2 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-blue-500"
+            className="w-full h-2 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-teal-500"
           />
           <div className="flex justify-between text-[10px] text-slate-500 mt-1">
             <span>5 mi</span>
@@ -345,10 +329,10 @@ export const Step2Availability: React.FC<Step2AvailabilityProps> = ({
         <div>
           <div className="flex justify-between items-center mb-2">
             <label className="text-xs font-semibold text-slate-300 flex items-center space-x-1.5">
-              <Clock className="w-3.5 h-3.5 text-blue-400" />
+              <Clock className="w-3.5 h-3.5 text-teal-400" />
               <span>Max Weekly Hours:</span>
             </label>
-            <span className="text-xs font-bold text-blue-400">{maxHours} hrs/wk</span>
+            <span className="text-xs font-bold text-teal-400">{maxHours} hrs/wk</span>
           </div>
           <input
             type="range"
@@ -356,7 +340,7 @@ export const Step2Availability: React.FC<Step2AvailabilityProps> = ({
             max={80}
             step={5}
             {...register('availability.max_weekly_hours', { valueAsNumber: true })}
-            className="w-full h-2 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-blue-500"
+            className="w-full h-2 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-teal-500"
           />
           <div className="flex justify-between text-[10px] text-slate-500 mt-1">
             <span>10 hrs</span>
@@ -381,7 +365,7 @@ export const Step2Availability: React.FC<Step2AvailabilityProps> = ({
         <button
           type="submit"
           disabled={isSubmitting}
-          style={{ backgroundColor: 'var(--primary, #1E3A8A)' }}
+          style={{ backgroundColor: 'var(--primary, #0F766E)' }}
           className="inline-flex items-center space-x-2 px-6 py-3 rounded-lg text-white font-semibold text-sm hover:brightness-110 transition-all shadow-md disabled:opacity-50 cursor-pointer"
         >
           {isSubmitting ? (

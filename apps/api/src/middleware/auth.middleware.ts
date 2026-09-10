@@ -1,12 +1,8 @@
 import type { Request, Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
+import type { UserRole, AuthenticatedUser } from '@crystal/types';
 
-export interface AuthenticatedUser {
-  id: string;
-  email?: string;
-  role?: string;
-  org_id?: string;
-}
+export type { AuthenticatedUser };
 
 // Extend Express Request interface
 declare global {
@@ -17,6 +13,10 @@ declare global {
   }
 }
 
+/**
+ * Validates the cryptographic signature of the Bearer JWT token
+ * and extracts user identity into req.user
+ */
 export function verifyJWT(req: Request, res: Response, next: NextFunction): void {
   const authHeader = req.headers.authorization;
 
@@ -33,8 +33,7 @@ export function verifyJWT(req: Request, res: Response, next: NextFunction): void
 
   try {
     const decoded = jwt.verify(token, jwtSecret) as jwt.JwtPayload;
-    
-    // Supabase JWTs or standard JWTs
+
     const userId = decoded.sub || (decoded.id as string);
     if (!userId) {
       res.status(401).json({
@@ -47,7 +46,7 @@ export function verifyJWT(req: Request, res: Response, next: NextFunction): void
     req.user = {
       id: userId,
       email: decoded.email as string | undefined,
-      role: (decoded.app_metadata?.role || decoded.role) as string | undefined,
+      role: (decoded.app_metadata?.role || decoded.role) as UserRole | undefined,
       org_id: (decoded.app_metadata?.org_id || decoded.org_id) as string | undefined,
     };
 
@@ -58,4 +57,106 @@ export function verifyJWT(req: Request, res: Response, next: NextFunction): void
       error: 'Missing or invalid Bearer authentication token',
     });
   }
+}
+
+/**
+ * Enforces Role-Based Access Control (RBAC).
+ * super_admin automatically satisfies all role checks.
+ */
+export function requireRole(...allowedRoles: UserRole[]) {
+  return (req: Request, res: Response, next: NextFunction): void => {
+    if (!req.user) {
+      res.status(401).json({
+        success: false,
+        error: 'Authentication required before role verification',
+      });
+      return;
+    }
+
+    const userRole = req.user.role;
+
+    // Super admin has global bypass permissions across all state domains
+    if (userRole === 'super_admin') {
+      next();
+      return;
+    }
+
+    if (!userRole || !allowedRoles.includes(userRole)) {
+      res.status(403).json({
+        success: false,
+        error: `Forbidden: User role [${userRole || 'unassigned'}] lacks required permissions (${allowedRoles.join(', ')})`,
+      });
+      return;
+    }
+
+    next();
+  };
+}
+
+/**
+ * Enforces organization boundary isolation.
+ * Requires that req.user has an org_id assigned (unless user is super_admin).
+ */
+export function requireOrg(req: Request, res: Response, next: NextFunction): void {
+  if (!req.user) {
+    res.status(401).json({
+      success: false,
+      error: 'Authentication required',
+    });
+    return;
+  }
+
+  // Super admin can operate without an explicit org_id or override via query
+  if (req.user.role === 'super_admin') {
+    next();
+    return;
+  }
+
+  if (!req.user.org_id) {
+    res.status(400).json({
+      success: false,
+      error: 'Bad Request: User profile is not bound to a valid organization tenant',
+    });
+    return;
+  }
+
+  next();
+};
+
+/**
+ * Optional JWT validation: extracts user identity if valid Bearer token provided,
+ * but allows unauthenticated public requests to proceed without error.
+ */
+export function optionalJWT(req: Request, _res: Response, next: NextFunction): void {
+  const authHeader = req.headers.authorization;
+
+  if (!authHeader || !authHeader.startsWith('Bearer ')) {
+    next();
+    return;
+  }
+
+  const token = authHeader.split(' ')[1];
+  if (!token || token === 'dev-applicant-token') {
+    next();
+    return;
+  }
+
+  const jwtSecret = process.env.JWT_SECRET || 'super-secret-jwt-key-change-in-production-12345';
+
+  try {
+    const decoded = jwt.verify(token, jwtSecret) as jwt.JwtPayload;
+    const userId = decoded.sub || (decoded.id as string);
+    if (userId) {
+      req.user = {
+        id: userId,
+        email: decoded.email as string | undefined,
+        role: (decoded.app_metadata?.role || decoded.role) as UserRole | undefined,
+        org_id: (decoded.app_metadata?.org_id || decoded.org_id) as string | undefined,
+      };
+    }
+  } catch {
+    // Ignore invalid/expired token for optional endpoints
+  }
+
+  next();
 }

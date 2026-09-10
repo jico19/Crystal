@@ -1,5 +1,5 @@
 import { inquiriesRepository, type InsertInquiryParams } from './inquiries.repository.js';
-import { sendLeadNotificationEmail } from '../../lib/ses-mailer.js';
+import { getEmailProvider } from '../../integrations/email/index.js';
 import type { CreatePublicInquiryInput } from '@crystal/validation';
 
 export interface SubmitInquiryResult {
@@ -27,18 +27,14 @@ export class InquiriesService {
     // 2. Insert record into database
     const inquiryId = await inquiriesRepository.createInquiry(insertParams);
 
-    // 3. Fire-and-forget non-blocking SES email notification
-    sendLeadNotificationEmail({
-      inquiryId,
-      orgId: payload.org_id,
-      stateCode: payload.state_code,
-      fullName: payload.full_name,
-      email: payload.email,
-      phone: payload.phone,
-      inquiryType: payload.inquiry_type,
-      message: payload.message,
+    // 3. Fire-and-forget non-blocking email notification
+    getEmailProvider().sendEmail({
+      to: process.env.SES_FROM_EMAIL || 'notifications@crystalhomecare.com',
+      subject: `New Lead: ${payload.full_name} (${payload.inquiry_type})`,
+      html: `<p>New inquiry from ${payload.full_name} (${payload.email}, ${payload.phone}):</p><p>${payload.message}</p>`,
+      text: `New inquiry from ${payload.full_name} (${payload.email}, ${payload.phone}):\n\n${payload.message}`,
     }).catch((mailErr) => {
-      console.error('[SES Lead Mailer Non-Blocking Error]', mailErr);
+      console.error('[Email Notification Error]', mailErr);
     });
 
     return { isHoneypot: false, inquiryId };

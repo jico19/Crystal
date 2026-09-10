@@ -15,16 +15,19 @@ import { LegalDisclosuresStepSchema, type LegalDisclosuresStepInput } from '@cry
 
 export interface Step5AttestationProps {
   initialValues?: Partial<LegalDisclosuresStepInput>;
-  onSuccess: (result: { profileId: string; status: string; submittedAt: string }) => void;
+  onSuccess: (data: LegalDisclosuresStepInput) => void;
+  onAutosave?: (data: Partial<LegalDisclosuresStepInput>) => void;
   onBack: () => void;
+  isSubmitting?: boolean;
 }
 
 export const Step5Attestation: React.FC<Step5AttestationProps> = ({
   initialValues,
   onSuccess,
+  onAutosave,
   onBack,
+  isSubmitting = false,
 }) => {
-  const [isSubmitting, setIsSubmitting] = useState(false);
   const [serverError, setServerError] = useState<string | null>(null);
 
   const {
@@ -45,46 +48,20 @@ export const Step5Attestation: React.FC<Step5AttestationProps> = ({
     },
   });
 
+  // Autosave to session on input change
+  React.useEffect(() => {
+    const subscription = watch((values) => {
+      onAutosave?.(values as Partial<LegalDisclosuresStepInput>);
+    });
+    return () => subscription.unsubscribe();
+  }, [watch, onAutosave]);
+
   const hasFelony = watch('felony_conviction');
   const typedSignature = watch('attestation_signature');
 
-  const onSubmit = async (data: LegalDisclosuresStepInput) => {
-    try {
-      setIsSubmitting(true);
-      setServerError(null);
-
-      const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:4000';
-      const token = localStorage.getItem('crystal_jwt') || 'dev-applicant-token';
-
-      const response = await fetch(`${apiUrl}/api/v1/caregivers/application/submit`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({
-          ...data,
-          attestation_timestamp: new Date().toISOString(),
-        }),
-      });
-
-      const json = await response.json();
-
-      if (!response.ok || !json.success) {
-        if (json.fieldErrors) {
-          const firstField = Object.keys(json.fieldErrors)[0];
-          throw new Error(json.fieldErrors[firstField][0]);
-        }
-        throw new Error(json.error || 'Application submission failed');
-      }
-
-      onSuccess(json.data);
-    } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : 'An unexpected error occurred.';
-      setServerError(message);
-    } finally {
-      setIsSubmitting(false);
-    }
+  const onSubmit = (data: LegalDisclosuresStepInput) => {
+    setServerError(null);
+    onSuccess(data);
   };
 
   return (
@@ -229,7 +206,7 @@ export const Step5Attestation: React.FC<Step5AttestationProps> = ({
               placeholder="Provide full disclosure explanation..."
               disabled={isSubmitting}
               {...register('felony_explanation')}
-              className="w-full px-3.5 py-2 rounded-lg bg-slate-950 border border-amber-500/40 text-white placeholder-slate-600 focus:outline-none focus:border-amber-500 text-xs disabled:opacity-50"
+              className="w-full px-3.5 py-2 rounded-lg bg-slate-950 border border-amber-500/40 text-white placeholder-slate-400 focus:outline-none focus:border-amber-500 focus-visible:ring-2 focus-visible:ring-amber-500 text-xs disabled:opacity-50"
             />
             {errors.felony_explanation && (
               <p className="text-xs text-red-400 mt-1">{errors.felony_explanation.message}</p>
@@ -259,7 +236,7 @@ export const Step5Attestation: React.FC<Step5AttestationProps> = ({
               placeholder="e.g. Jane Marie Doe"
               disabled={isSubmitting}
               {...register('attestation_signature')}
-              className="w-full px-3.5 py-2.5 rounded-lg bg-slate-950 border border-slate-800 text-white placeholder-slate-600 focus:outline-none focus:border-teal-500 text-sm font-serif italic disabled:opacity-50 tracking-wide"
+              className="w-full px-3.5 py-2.5 rounded-lg bg-slate-950 border border-slate-800 text-white placeholder-slate-400 focus:outline-none focus:border-teal-500 focus-visible:ring-2 focus-visible:ring-teal-400 text-sm font-serif italic disabled:opacity-50 tracking-wide"
             />
             {errors.attestation_signature && (
               <p className="text-xs text-red-400 mt-1">{errors.attestation_signature.message}</p>

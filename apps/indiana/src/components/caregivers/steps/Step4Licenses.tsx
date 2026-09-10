@@ -18,7 +18,8 @@ import { useOrgTheme } from '../../../lib/OrgThemeContext.tsx';
 
 export interface Step4LicensesProps {
   initialValues?: Partial<LicensesStepInput>;
-  onSuccess: () => void;
+  onSuccess: (data: LicensesStepInput) => void;
+  onAutosave?: (data: Partial<LicensesStepInput>) => void;
   onBack: () => void;
 }
 
@@ -34,6 +35,7 @@ const LICENSE_TYPES = [
 export const Step4Licenses: React.FC<Step4LicensesProps> = ({
   initialValues,
   onSuccess,
+  onAutosave,
   onBack,
 }) => {
   const { org } = useOrgTheme();
@@ -63,6 +65,14 @@ export const Step4Licenses: React.FC<Step4LicensesProps> = ({
       ],
     },
   });
+
+  // Autosave to session on input change
+  React.useEffect(() => {
+    const subscription = watch((values) => {
+      onAutosave?.(values as Partial<LicensesStepInput>);
+    });
+    return () => subscription.unsubscribe();
+  }, [watch, onAutosave]);
 
   const { fields, append, remove } = useFieldArray({
     control,
@@ -95,37 +105,11 @@ export const Step4Licenses: React.FC<Step4LicensesProps> = ({
     return exp < today;
   };
 
-  const onSubmit = async (data: LicensesStepInput) => {
+  const onSubmit = (data: LicensesStepInput) => {
     try {
       setIsSubmitting(true);
       setServerError(null);
-
-      const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:4000';
-      const token = localStorage.getItem('crystal_jwt') || 'dev-applicant-token';
-
-      const response = await fetch(`${apiUrl}/api/v1/caregivers/application/draft`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({
-          step: 4,
-          data: noLicenses ? { professional_licenses: [] } : data,
-        }),
-      });
-
-      const json = await response.json();
-
-      if (!response.ok || !json.success) {
-        if (json.fieldErrors) {
-          const firstField = Object.keys(json.fieldErrors)[0];
-          throw new Error(json.fieldErrors[firstField][0]);
-        }
-        throw new Error(json.error || 'Failed to save professional licenses');
-      }
-
-      onSuccess();
+      onSuccess(data);
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : 'An unexpected error occurred.';
       setServerError(message);
@@ -138,7 +122,7 @@ export const Step4Licenses: React.FC<Step4LicensesProps> = ({
     <form onSubmit={handleSubmit(onSubmit)} className="space-y-8">
       <div className="border-b border-slate-800 pb-4">
         <h2 className="text-xl font-bold text-white flex items-center space-x-2">
-          <Award className="w-5 h-5 text-blue-400" />
+          <Award className="w-5 h-5 text-teal-400" />
           <span>Step 4: Professional Licenses & Certifications</span>
         </h2>
         <p className="text-slate-400 text-xs mt-1">
@@ -160,7 +144,7 @@ export const Step4Licenses: React.FC<Step4LicensesProps> = ({
           id="noLicensesCheckbox"
           checked={noLicenses}
           onChange={(e) => handleToggleNoLicenses(e.target.checked)}
-          className="rounded bg-slate-800 border-slate-700 text-blue-600 focus:ring-blue-500 w-4 h-4 mt-0.5"
+          className="rounded bg-slate-800 border-slate-700 text-teal-600 focus:ring-teal-500 w-4 h-4 mt-0.5"
         />
         <label htmlFor="noLicensesCheckbox" className="text-xs text-slate-300 cursor-pointer">
           <strong className="text-white block font-semibold">
@@ -176,7 +160,7 @@ export const Step4Licenses: React.FC<Step4LicensesProps> = ({
         <div className="space-y-4">
           <div className="flex items-center justify-between">
             <h3 className="text-sm font-semibold text-white flex items-center space-x-2">
-              <ShieldCheck className="w-4 h-4 text-blue-400" />
+              <ShieldCheck className="w-4 h-4 text-teal-400" />
               <span>Active Licenses / Certifications</span>
             </h3>
             <button
@@ -189,7 +173,7 @@ export const Step4Licenses: React.FC<Step4LicensesProps> = ({
                   expiration_date: '',
                 })
               }
-              className="inline-flex items-center space-x-1.5 px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-blue-400 text-xs font-semibold border border-slate-700 transition-colors cursor-pointer"
+              className="inline-flex items-center space-x-1.5 px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-teal-400 text-xs font-semibold border border-slate-700 transition-colors cursor-pointer"
             >
               <Plus className="w-3.5 h-3.5" />
               <span>Add License</span>
@@ -208,7 +192,7 @@ export const Step4Licenses: React.FC<Step4LicensesProps> = ({
                 >
                   <div className="flex justify-between items-center pb-2 border-b border-slate-800">
                     <span className="text-xs font-bold text-slate-300 uppercase tracking-wider flex items-center space-x-2">
-                      <Award className="w-3.5 h-3.5 text-blue-400" />
+                      <Award className="w-3.5 h-3.5 text-teal-400" />
                       <span>License / Certification #{index + 1}</span>
                     </span>
                     {fields.length > 1 && (
@@ -231,7 +215,7 @@ export const Step4Licenses: React.FC<Step4LicensesProps> = ({
                       <select
                         disabled={isSubmitting}
                         {...register(`professional_licenses.${index}.license_type` as const)}
-                        className="w-full px-3 py-2 rounded-lg bg-slate-950 border border-slate-800 text-white focus:outline-none focus:border-blue-500 text-xs disabled:opacity-50"
+                        className="w-full px-3 py-2 rounded-lg bg-slate-950 border border-slate-800 text-white focus:outline-none focus:border-teal-500 text-xs disabled:opacity-50"
                       >
                         {LICENSE_TYPES.map((t) => (
                           <option key={t.id} value={t.id}>
@@ -250,7 +234,7 @@ export const Step4Licenses: React.FC<Step4LicensesProps> = ({
                         placeholder="e.g. CNA-1098452"
                         disabled={isSubmitting}
                         {...register(`professional_licenses.${index}.license_number` as const)}
-                        className="w-full px-3 py-2 rounded-lg bg-slate-950 border border-slate-800 text-white placeholder-slate-600 focus:outline-none focus:border-blue-500 text-xs disabled:opacity-50"
+                        className="w-full px-3 py-2 rounded-lg bg-slate-950 border border-slate-800 text-white placeholder-slate-400 focus:outline-none focus:border-teal-500 focus-visible:ring-2 focus-visible:ring-teal-400 text-xs disabled:opacity-50"
                       />
                       {errors.professional_licenses?.[index]?.license_number && (
                         <p className="text-[11px] text-red-400 mt-1">
@@ -271,7 +255,7 @@ export const Step4Licenses: React.FC<Step4LicensesProps> = ({
                         maxLength={2}
                         disabled={isSubmitting}
                         {...register(`professional_licenses.${index}.issuing_state` as const)}
-                        className="w-full px-3 py-2 rounded-lg bg-slate-950 border border-slate-800 text-white placeholder-slate-600 focus:outline-none focus:border-blue-500 text-xs uppercase disabled:opacity-50"
+                        className="w-full px-3 py-2 rounded-lg bg-slate-950 border border-slate-800 text-white placeholder-slate-400 focus:outline-none focus:border-teal-500 focus-visible:ring-2 focus-visible:ring-teal-400 text-xs uppercase disabled:opacity-50"
                       />
                       {errors.professional_licenses?.[index]?.issuing_state && (
                         <p className="text-[11px] text-red-400 mt-1">
@@ -282,14 +266,14 @@ export const Step4Licenses: React.FC<Step4LicensesProps> = ({
 
                     <div>
                       <label className="block text-xs font-medium text-slate-300 mb-1 flex items-center space-x-1">
-                        <Calendar className="w-3 h-3 text-blue-400" />
+                        <Calendar className="w-3 h-3 text-teal-400" />
                         <span>Expiration Date *</span>
                       </label>
                       <input
                         type="date"
                         disabled={isSubmitting}
                         {...register(`professional_licenses.${index}.expiration_date` as const)}
-                        className="w-full px-3 py-2 rounded-lg bg-slate-950 border border-slate-800 text-white placeholder-slate-600 focus:outline-none focus:border-blue-500 text-xs disabled:opacity-50"
+                        className="w-full px-3 py-2 rounded-lg bg-slate-950 border border-slate-800 text-white placeholder-slate-400 focus:outline-none focus:border-teal-500 focus-visible:ring-2 focus-visible:ring-teal-400 text-xs disabled:opacity-50"
                       />
                       {errors.professional_licenses?.[index]?.expiration_date && (
                         <p className="text-[11px] text-red-400 mt-1">
@@ -326,7 +310,7 @@ export const Step4Licenses: React.FC<Step4LicensesProps> = ({
         <button
           type="submit"
           disabled={isSubmitting}
-          style={{ backgroundColor: 'var(--primary, #1E3A8A)' }}
+          style={{ backgroundColor: 'var(--primary, #0F766E)' }}
           className="inline-flex items-center space-x-2 px-6 py-3 rounded-lg text-white font-semibold text-sm hover:brightness-110 transition-all shadow-md disabled:opacity-50 cursor-pointer"
         >
           {isSubmitting ? (

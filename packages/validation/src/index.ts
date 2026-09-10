@@ -156,7 +156,12 @@ export const WorkHistoryItemSchema = z.object({
   employer_name: z.string().min(2, 'Employer name is required'),
   job_title: z.string().min(2, 'Job title is required'),
   start_date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Valid start date required (YYYY-MM-DD)'),
-  end_date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Valid end date required').optional(),
+  end_date: z
+    .union([
+      z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Valid end date required (YYYY-MM-DD)'),
+      z.literal(''),
+    ])
+    .optional(),
   reason_for_leaving: z.string().optional(),
   supervisor_contact: z.string().optional(),
 });
@@ -165,8 +170,13 @@ export const ReferenceItemSchema = z.object({
   name: z.string().min(2, 'Reference name is required'),
   relationship: z.enum(['professional', 'personal', 'supervisor']),
   phone: z.string().regex(/^\+?1?\s*\(?-*\d{3}\)?[-.\s]*\d{3}[-.\s]*\d{4}$/, 'Valid US phone number required'),
-  email: z.string().email().optional(),
-  years_known: z.number().min(0.5, 'Years known must be at least 0.5'),
+  email: z
+    .union([
+      z.string().email('Valid email address required'),
+      z.literal(''),
+    ])
+    .optional(),
+  years_known: z.coerce.number().min(0.5, 'Years known must be at least 0.5'),
 });
 
 export const ExperienceStepSchema = z.object({
@@ -281,3 +291,235 @@ export const SaveDraftStepSchema = z.discriminatedUnion('step', [
 ]);
 
 export type SaveDraftStepInput = z.infer<typeof SaveDraftStepSchema>;
+
+// ============================================================================
+// Spec 10: RBAC, Users & Audit Trail Schemas
+// ============================================================================
+export const UserRoleSchema = z.enum([
+  'super_admin',
+  'agency_admin',
+  'care_coordinator',
+  'registered_nurse',
+  'caregiver',
+]);
+
+export type UserRoleInput = z.infer<typeof UserRoleSchema>;
+
+export const AuditLogQuerySchema = z.object({
+  event_type: z
+    .enum([
+      'AUTH_LOGIN',
+      'AUTH_FAILED',
+      'AUTH_LOCKOUT',
+      'PHI_ACCESS',
+      'PII_DECRYPT',
+      'RECORD_MUTATION',
+      'SECURITY_VIOLATION',
+      'DOCUMENT_DOWNLOAD',
+      'ROLE_CHANGE',
+    ])
+    .optional(),
+  org_id: z.string().uuid().optional(),
+  user_id: z.string().uuid().optional(),
+  from_date: z.string().datetime().optional(),
+  to_date: z.string().datetime().optional(),
+  page: z.coerce.number().int().min(1).default(1),
+  page_size: z.coerce.number().int().min(1).max(100).default(25),
+});
+
+export type AuditLogQueryInput = z.infer<typeof AuditLogQuerySchema>;
+
+export const UpdateUserRoleSchema = z.object({
+  role: UserRoleSchema,
+  state_code: z.enum(['GA', 'IN', 'FL', 'ALL']).optional(),
+});
+
+export type UpdateUserRoleInput = z.infer<typeof UpdateUserRoleSchema>;
+
+export const UpdateUserStatusSchema = z.object({
+  is_active: z.boolean(),
+  reason: z.string().optional(),
+});
+
+export type UpdateUserStatusInput = z.infer<typeof UpdateUserStatusSchema>;
+
+// ============================================================================
+// Spec 03: Caregiver Documents & Credential Tracking Schemas
+// ============================================================================
+export const DocumentCategorySchema = z.enum([
+  'drivers_license',
+  'social_security_card',
+  'cpr_first_aid',
+  'cna_hha_license',
+  'tb_test_screen',
+  'physical_exam',
+  'background_check_report',
+  'auto_insurance',
+  'direct_deposit_form',
+  'w4_i9_form',
+  'other_compliance_doc',
+]);
+
+export const RequestUploadUrlSchema = z.object({
+  caregiver_id: z.string().uuid(),
+  category: DocumentCategorySchema,
+  file_name: z.string().min(1).max(255),
+  mime_type: z.string().regex(/^(image\/[a-z0-9.-]+|application\/pdf)$/, 'Only PDF or images permitted'),
+  file_size_bytes: z.number().int().positive().max(25 * 1024 * 1024, 'Max file size 25MB'),
+  expiration_date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Expiration date must be YYYY-MM-DD').optional(),
+});
+
+export type RequestUploadUrlInput = z.infer<typeof RequestUploadUrlSchema>;
+
+export const ConfirmUploadSchema = z.object({
+  storage_path: z.string().min(1),
+  expiration_date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
+});
+
+export type ConfirmUploadInput = z.infer<typeof ConfirmUploadSchema>;
+
+export const ReviewDocumentSchema = z.object({
+  verification_status: z.enum(['approved', 'rejected']),
+  rejection_reason: z.string().min(3).optional(),
+}).refine(
+  (data) => {
+    if (data.verification_status === 'rejected') {
+      return !!data.rejection_reason && data.rejection_reason.trim().length > 0;
+    }
+    return true;
+  },
+  {
+    message: 'Rejection reason is mandatory when rejecting a document',
+    path: ['rejection_reason'],
+  }
+);
+
+export type ReviewDocumentInput = z.infer<typeof ReviewDocumentSchema>;
+
+// ============================================================================
+// Spec 04: In-Service Training Portal Schemas
+// ============================================================================
+export const VideoProgressUpdateSchema = z.object({
+  module_id: z.string().uuid(),
+  watched_seconds: z.number().min(0),
+  delta_seconds: z.number().min(0).max(60, 'Video progress update exceeds permitted rate'),
+});
+
+export type VideoProgressUpdateInput = z.infer<typeof VideoProgressUpdateSchema>;
+
+export const QuizSubmissionSchema = z.object({
+  module_id: z.string().uuid(),
+  answers: z.record(z.string(), z.number().int().min(0)), // question_id -> selected_option_index
+});
+
+export type QuizSubmissionInput = z.infer<typeof QuizSubmissionSchema>;
+
+// ============================================================================
+// Spec 05: Client Intake Schemas
+// ============================================================================
+export const ClientEmergencyContactSchema = z.object({
+  name: z.string().min(2, 'Name is required'),
+  relationship: z.string().min(2, 'Relationship is required'),
+  phone: z.string().regex(/^\+?1?\s*\(?-*\d{3}\)?[-.\s]*\d{3}[-.\s]*\d{4}$/, 'Valid phone required'),
+  alternate_phone: z.string().optional(),
+  is_primary: z.boolean().default(false),
+});
+
+export const CreateClientIntakeSchema = z.object({
+  org_id: z.string().uuid(),
+  first_name: z.string().min(2),
+  last_name: z.string().min(2),
+  dob: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+  gender: z.enum(['male', 'female', 'other']),
+  medicaid_id: z.string().min(4).optional(),
+  service_address: OfficeAddressSchema,
+  emergency_contacts: z.array(ClientEmergencyContactSchema).min(1, 'At least 1 emergency contact is required'),
+  care_needs: z.object({
+    primary_diagnosis: z.string().optional(),
+    mobility_assistance: z.boolean().default(false),
+    bathing_dressing: z.boolean().default(false),
+    meal_prep: z.boolean().default(false),
+    medication_reminders: z.boolean().default(false),
+    notes: z.string().optional(),
+  }),
+  payer_details: z.object({
+    payer_name: z.string().min(2),
+    plan_type: z.string().min(2),
+    policy_number: z.string().optional(),
+    coordinator_name: z.string().optional(),
+    coordinator_phone: z.string().optional(),
+  }),
+});
+
+export type CreateClientIntakeInput = z.infer<typeof CreateClientIntakeSchema>;
+
+export const UpdateClientStatusSchema = z.object({
+  status: z.enum(['intake_draft', 'submitted', 'active', 'suspended', 'discharged']),
+  notes: z.string().optional(),
+});
+
+export type UpdateClientStatusInput = z.infer<typeof UpdateClientStatusSchema>;
+
+// ============================================================================
+// Spec 06: Client Prior Authorization Schemas
+// ============================================================================
+export const CreateAuthorizationSchema = z.object({
+  client_id: z.string().uuid(),
+  auth_number: z.string().min(3),
+  payer_id: z.string().min(2),
+  service_code: z.string().default('T1019'),
+  start_date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+  end_date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+  total_units_authorized: z.number().int().positive('Total units must be positive (1 unit = 15m)'),
+  weekly_unit_cap: z.number().int().positive().optional(),
+  notes: z.string().optional(),
+});
+
+export type CreateAuthorizationInput = z.infer<typeof CreateAuthorizationSchema>;
+
+export const UpdateAuthorizationUnitsSchema = z.object({
+  units_used_delta: z.number().int().min(1, 'Increment must be at least 1 unit'),
+  service_date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
+  notes: z.string().optional(),
+});
+
+export type UpdateAuthorizationUnitsInput = z.infer<typeof UpdateAuthorizationUnitsSchema>;
+
+// ============================================================================
+// Spec 08: Notification Engine Schemas
+// ============================================================================
+export const QueueNotificationSchema = z.object({
+  org_id: z.string().uuid(),
+  recipient_user_id: z.string().uuid().optional(),
+  channel: z.enum(['email', 'sms', 'in_app']),
+  destination: z.string().min(3),
+  subject: z.string().optional(),
+  payload: z.record(z.string(), z.unknown()),
+});
+
+export type QueueNotificationInput = z.infer<typeof QueueNotificationSchema>;
+
+// ============================================================================
+// Spec 09: E-Signature Schemas
+// ============================================================================
+export const CreateEnvelopeSchema = z.object({
+  org_id: z.string().uuid(),
+  title: z.string().min(3),
+  document_type: z.string().min(2),
+  related_entity_id: z.string().uuid(),
+  recipient_email: z.string().email(),
+  recipient_name: z.string().min(2),
+});
+
+export type CreateEnvelopeInput = z.infer<typeof CreateEnvelopeSchema>;
+
+export const SubmitSignatureSchema = z.object({
+  signature_data_url: z.string().min(20, 'Signature image is required'),
+  consent_given: z.literal(true, {
+    errorMap: () => ({ message: 'Electronic signature consent is required' }),
+  }),
+  full_legal_name: z.string().min(2),
+});
+
+export type SubmitSignatureInput = z.infer<typeof SubmitSignatureSchema>;
+

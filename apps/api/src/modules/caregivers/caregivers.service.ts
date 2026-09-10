@@ -1,3 +1,4 @@
+import jwt from 'jsonwebtoken';
 import {
   caregiversRepository,
   type CaregiverDraftResult,
@@ -9,7 +10,7 @@ import {
   type SaveDraftStepInput,
   type LegalDisclosuresStepInput,
 } from '@crystal/validation';
-import { sendApplicationSubmittedEmails } from '../../lib/ses-mailer.js';
+import { getEmailProvider } from '../../integrations/email/index.js';
 
 export class ServiceError extends Error {
   status: number;
@@ -27,7 +28,7 @@ export class CaregiversService {
    * Creates or updates a caregiver's draft application profile with SSN sanitization (Step 1)
    */
   async createOrUpdateDraftProfile(
-    userId: string,
+    userId: string | undefined,
     input: CreateDraftApplicationInput
   ): Promise<CaregiverDraftResult> {
     const { ssn, ...restOfPersonalInfo } = input.personal_info;
@@ -42,13 +43,34 @@ export class CaregiversService {
       ssn_last4,
     };
 
-    return await caregiversRepository.upsertDraftProfile({
+    const draftResult = await caregiversRepository.upsertDraftProfile({
       userId,
       email: input.personal_info.email,
       orgId: input.org_id,
       stateCode: input.state_code,
       sanitizedPersonalInfo,
     });
+
+    const jwtSecret = process.env.JWT_SECRET || 'super-secret-jwt-key-change-in-production-12345';
+    const token = jwt.sign(
+      {
+        sub: draftResult.userId,
+        role: 'caregiver',
+        email: input.personal_info.email,
+        org_id: input.org_id,
+        app_metadata: {
+          role: 'caregiver',
+          org_id: input.org_id,
+        },
+      },
+      jwtSecret,
+      { expiresIn: '7d' }
+    );
+
+    return {
+      ...draftResult,
+      token,
+    };
   }
 
   /**
@@ -139,13 +161,13 @@ export class CaregiversService {
     const applicantEmail = personalInfo?.email || 'applicant@example.com';
     const applicantName = `${personalInfo?.first_name || ''} ${personalInfo?.last_name || ''}`.trim() || 'Caregiver Candidate';
 
-    sendApplicationSubmittedEmails({
-      applicantEmail,
-      applicantName,
-      stateCode: existing.state_code,
-      orgId: existing.org_id,
-    }).catch((err) => {
-      console.error('[SES Non-blocking Error] Failed to send application submitted emails:', err);
+    getEmailProvider().sendEmail({
+      to: applicantEmail,
+      subject: 'Caregiver Application Received - Crystal Home Care',
+      html: `<p>Dear ${applicantName},</p><p>Your caregiver application has been submitted and is under clinical review.</p>`,
+      text: `Dear ${applicantName},\n\nYour caregiver application has been submitted and is under clinical review.`,
+    }).catch((err: unknown) => {
+      console.error('[Email Notification Error] Failed to send application submitted email:', err);
     });
 
     return submitResult;

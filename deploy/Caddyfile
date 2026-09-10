@@ -1,0 +1,45 @@
+{
+    email admin@crystalcare.health
+}
+
+# Georgia Domain
+{$GEORGIA_DOMAIN:withopenhands.com} {
+    encode gzip zstd
+    root * /srv/georgia
+    file_server
+    try_files {path} /index.html
+
+    handle /api/* {
+        reverse_proxy api:4000
+    }
+}
+
+# Indiana Domain
+{$INDIANA_DOMAIN:cherishopenarms.com} {
+    encode gzip zstd
+    root * /srv/indiana
+    file_server
+    try_files {path} /index.html
+
+    handle /api/* {
+        reverse_proxy api:4000
+    }
+}
+
+# Florida Domain
+{$FLORIDA_DOMAIN:suncoastcare.com} {
+    encode gzip zstd
+    root * /srv/georgia
+    file_server
+    try_files {path} /index.html
+
+    handle /api/* {
+        reverse_proxy api:4000
+    }
+}
+
+# Direct API Gateway
+{$API_DOMAIN:api.crystalcare.health} {
+    encode gzip zstd
+    reverse_proxy api:4000
+}

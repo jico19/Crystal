@@ -1,43 +1,76 @@
 import React, { useState } from 'react';
 import { Outlet, useNavigate } from 'react-router-dom';
+import { Toaster, toast } from 'sonner';
 import { WizardHeader } from '../../components/apply/WizardHeader.tsx';
 import { StepIndicator } from '../../components/apply/StepIndicator.tsx';
+import { ResumeDraftModal } from '../../components/apply/ResumeDraftModal.tsx';
+import { useWizardDraft, type WizardDraftData } from '../../hooks/useWizardDraft.ts';
 
 export interface WizardContextType {
   currentStep: number;
   setCurrentStep: (step: number) => void;
   completedSteps: number[];
   markStepComplete: (step: number) => void;
+  draft: WizardDraftData;
+  saveStepData: (step: 1 | 2 | 3 | 4 | 5, data: any, showToast?: boolean) => void;
+  clearDraft: () => void;
 }
 
 export const ApplyWizardLayout: React.FC = () => {
-  const [currentStep, setCurrentStep] = useState<number>(1);
-  const [completedSteps, setCompletedSteps] = useState<number[]>([]);
+  const {
+    draft,
+    currentStep,
+    completedSteps,
+    saveStepData,
+    markStepComplete,
+    setCurrentStep,
+    clearDraft,
+    hasExistingDraft,
+  } = useWizardDraft();
+
   const [isSaving, setIsSaving] = useState<boolean>(false);
+  const [showResumeModal, setShowResumeModal] = useState<boolean>(() => hasExistingDraft);
   const navigate = useNavigate();
 
   const handleSaveAndExit = async () => {
     try {
       setIsSaving(true);
-      // Wait for any pending auto-saves
-      await new Promise((resolve) => setTimeout(resolve, 600));
+      toast.info('Draft stored in session. It will remain until browser is closed.', {
+        duration: 3000,
+      });
+      await new Promise((resolve) => setTimeout(resolve, 500));
       navigate('/');
     } finally {
       setIsSaving(false);
     }
   };
 
-  const markStepComplete = (step: number) => {
-    if (!completedSteps.includes(step)) {
-      setCompletedSteps((prev) => [...prev, step]);
-    }
-    if (step < 5) {
-      setCurrentStep(step + 1);
-    }
+  const handleResume = () => {
+    setShowResumeModal(false);
+    toast.success(`Resumed application at Step ${currentStep}`, {
+      duration: 2500,
+    });
+  };
+
+  const handleStartFresh = () => {
+    clearDraft();
+    setShowResumeModal(false);
+    toast.info('Draft reset. Starting fresh from Step 1.', {
+      duration: 2500,
+    });
   };
 
   return (
     <div className="min-h-screen bg-slate-950 text-white flex flex-col font-sans">
+      <Toaster richColors position="top-right" theme="dark" />
+
+      <ResumeDraftModal
+        isOpen={showResumeModal}
+        draft={draft}
+        onResume={handleResume}
+        onStartFresh={handleStartFresh}
+      />
+
       <WizardHeader
         currentStep={currentStep}
         totalSteps={5}
@@ -54,7 +87,17 @@ export const ApplyWizardLayout: React.FC = () => {
       </div>
 
       <main className="flex-1 max-w-3xl w-full mx-auto px-4 py-8">
-        <Outlet context={{ currentStep, setCurrentStep, completedSteps, markStepComplete }} />
+        <Outlet
+          context={{
+            currentStep,
+            setCurrentStep,
+            completedSteps,
+            markStepComplete,
+            draft,
+            saveStepData,
+            clearDraft,
+          }}
+        />
       </main>
     </div>
   );

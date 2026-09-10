@@ -1,0 +1,88 @@
+services:
+  db:
+    image: postgres:16-alpine
+    container_name: crystal_postgres_prod
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-crystal_db}
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Database password required}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./db_schema:/docker-entrypoint-initdb.d
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres} -d ${POSTGRES_DB:-crystal_db}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - crystal_net
+
+  api:
+    build:
+      context: .
+      dockerfile: apps/api/Dockerfile
+    container_name: crystal_api_prod
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      PORT: 4000
+      DATABASE_URL: postgres://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB:-crystal_db}
+      JWT_SECRET: ${JWT_SECRET:?JWT secret required}
+      STORAGE_DRIVER: ${STORAGE_DRIVER:-local}
+      EMAIL_DRIVER: ${EMAIL_DRIVER:-local}
+      SMS_DRIVER: ${SMS_DRIVER:-local}
+      AWS_REGION: ${AWS_REGION:-us-east-1}
+      AWS_S3_BUCKET: ${AWS_S3_BUCKET:-}
+      AWS_SES_FROM_EMAIL: ${AWS_SES_FROM_EMAIL:-noreply@crystalcare.health}
+      TWILIO_ACCOUNT_SID: ${TWILIO_ACCOUNT_SID:-}
+      TWILIO_AUTH_TOKEN: ${TWILIO_AUTH_TOKEN:-}
+      TWILIO_FROM_PHONE: ${TWILIO_FROM_PHONE:-}
+      HIPAA_AUDIT_STRICT: "true"
+    depends_on:
+      db:
+        condition: service_healthy
+    volumes:
+      - local_storage_data:/app/apps/api/data/storage
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:4000/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+      start_period: 15s
+    networks:
+      - crystal_net
+
+  caddy:
+    image: caddy:2-alpine
+    container_name: crystal_caddy_prod
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    environment:
+      GEORGIA_DOMAIN: ${GEORGIA_DOMAIN:-withopenhands.com}
+      INDIANA_DOMAIN: ${INDIANA_DOMAIN:-cherishopenarms.com}
+      FLORIDA_DOMAIN: ${FLORIDA_DOMAIN:-suncoastcare.com}
+      API_DOMAIN: ${API_DOMAIN:-api.crystalcare.health}
+    volumes:
+      - ./deploy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - ./apps/georgia/dist:/srv/georgia:ro
+      - ./apps/indiana/dist:/srv/indiana:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      api:
+        condition: service_healthy
+    networks:
+      - crystal_net
+
+volumes:
+  postgres_data:
+  local_storage_data:
+  caddy_data:
+  caddy_config:
+
+networks:
+  crystal_net:
+    driver: bridge

@@ -18,7 +18,8 @@ import { useOrgTheme } from '../../../lib/OrgThemeContext.tsx';
 
 export interface Step4LicensesProps {
   initialValues?: Partial<LicensesStepInput>;
-  onSuccess: () => void;
+  onSuccess: (data: LicensesStepInput) => void;
+  onAutosave?: (data: Partial<LicensesStepInput>) => void;
   onBack: () => void;
 }
 
@@ -34,6 +35,7 @@ const LICENSE_TYPES = [
 export const Step4Licenses: React.FC<Step4LicensesProps> = ({
   initialValues,
   onSuccess,
+  onAutosave,
   onBack,
 }) => {
   const { org } = useOrgTheme();
@@ -63,6 +65,14 @@ export const Step4Licenses: React.FC<Step4LicensesProps> = ({
       ],
     },
   });
+
+  // Autosave to session on input change
+  React.useEffect(() => {
+    const subscription = watch((values) => {
+      onAutosave?.(values as Partial<LicensesStepInput>);
+    });
+    return () => subscription.unsubscribe();
+  }, [watch, onAutosave]);
 
   const { fields, append, remove } = useFieldArray({
     control,
@@ -95,37 +105,11 @@ export const Step4Licenses: React.FC<Step4LicensesProps> = ({
     return exp < today;
   };
 
-  const onSubmit = async (data: LicensesStepInput) => {
+  const onSubmit = (data: LicensesStepInput) => {
     try {
       setIsSubmitting(true);
       setServerError(null);
-
-      const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:4000';
-      const token = localStorage.getItem('crystal_jwt') || 'dev-applicant-token';
-
-      const response = await fetch(`${apiUrl}/api/v1/caregivers/application/draft`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({
-          step: 4,
-          data: noLicenses ? { professional_licenses: [] } : data,
-        }),
-      });
-
-      const json = await response.json();
-
-      if (!response.ok || !json.success) {
-        if (json.fieldErrors) {
-          const firstField = Object.keys(json.fieldErrors)[0];
-          throw new Error(json.fieldErrors[firstField][0]);
-        }
-        throw new Error(json.error || 'Failed to save professional licenses');
-      }
-
-      onSuccess();
+      onSuccess(data);
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : 'An unexpected error occurred.';
       setServerError(message);
@@ -250,7 +234,7 @@ export const Step4Licenses: React.FC<Step4LicensesProps> = ({
                         placeholder="e.g. CNA-1098452"
                         disabled={isSubmitting}
                         {...register(`professional_licenses.${index}.license_number` as const)}
-                        className="w-full px-3 py-2 rounded-lg bg-slate-950 border border-slate-800 text-white placeholder-slate-600 focus:outline-none focus:border-teal-500 text-xs disabled:opacity-50"
+                        className="w-full px-3 py-2 rounded-lg bg-slate-950 border border-slate-800 text-white placeholder-slate-400 focus:outline-none focus:border-teal-500 focus-visible:ring-2 focus-visible:ring-teal-400 text-xs disabled:opacity-50"
                       />
                       {errors.professional_licenses?.[index]?.license_number && (
                         <p className="text-[11px] text-red-400 mt-1">
@@ -271,7 +255,7 @@ export const Step4Licenses: React.FC<Step4LicensesProps> = ({
                         maxLength={2}
                         disabled={isSubmitting}
                         {...register(`professional_licenses.${index}.issuing_state` as const)}
-                        className="w-full px-3 py-2 rounded-lg bg-slate-950 border border-slate-800 text-white placeholder-slate-600 focus:outline-none focus:border-teal-500 text-xs uppercase disabled:opacity-50"
+                        className="w-full px-3 py-2 rounded-lg bg-slate-950 border border-slate-800 text-white placeholder-slate-400 focus:outline-none focus:border-teal-500 focus-visible:ring-2 focus-visible:ring-teal-400 text-xs uppercase disabled:opacity-50"
                       />
                       {errors.professional_licenses?.[index]?.issuing_state && (
                         <p className="text-[11px] text-red-400 mt-1">
@@ -289,7 +273,7 @@ export const Step4Licenses: React.FC<Step4LicensesProps> = ({
                         type="date"
                         disabled={isSubmitting}
                         {...register(`professional_licenses.${index}.expiration_date` as const)}
-                        className="w-full px-3 py-2 rounded-lg bg-slate-950 border border-slate-800 text-white placeholder-slate-600 focus:outline-none focus:border-teal-500 text-xs disabled:opacity-50"
+                        className="w-full px-3 py-2 rounded-lg bg-slate-950 border border-slate-800 text-white placeholder-slate-400 focus:outline-none focus:border-teal-500 focus-visible:ring-2 focus-visible:ring-teal-400 text-xs disabled:opacity-50"
                       />
                       {errors.professional_licenses?.[index]?.expiration_date && (
                         <p className="text-[11px] text-red-400 mt-1">

@@ -52,7 +52,7 @@ export const StepIndicator: React.FC<StepIndicatorProps> = ({
                       ? 'bg-emerald-500/20 border-emerald-500 text-emerald-400 cursor-pointer hover:bg-emerald-500/30'
                       : isCurrent
                       ? 'text-white ring-4 ring-blue-500/20 shadow-lg'
-                      : 'border-slate-800 bg-slate-900 text-slate-500 cursor-not-allowed'
+                      : 'border-slate-700 bg-slate-900 text-slate-400 cursor-not-allowed'
                   }`}
                 >
                   {isCompleted ? (
@@ -68,7 +68,7 @@ export const StepIndicator: React.FC<StepIndicatorProps> = ({
                       ? 'text-blue-400 font-semibold'
                       : isCompleted
                       ? 'text-slate-300'
-                      : 'text-slate-600'
+                      : 'text-slate-400'
                   }`}
                 >
                   {item.label}

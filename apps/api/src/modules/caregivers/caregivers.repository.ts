@@ -1,7 +1,7 @@
 import { db } from '../../db/index.js';
 
 export interface UpsertDraftProfileParams {
-  userId: string;
+  userId?: string;
   email: string;
   orgId: string;
   stateCode: 'GA' | 'IN' | 'FL';
@@ -10,8 +10,10 @@ export interface UpsertDraftProfileParams {
 
 export interface CaregiverDraftResult {
   profileId: string;
+  userId?: string;
   applicationStatus: string;
   applicationStep: number;
+  token?: string;
   updatedAt?: string;
 }
 
@@ -74,13 +76,58 @@ export class CaregiversRepository {
    * Upsert initial draft profile for a caregiver applicant (Step 1)
    */
   async upsertDraftProfile(params: UpsertDraftProfileParams): Promise<CaregiverDraftResult> {
-    // 1. Ensure user exists in auth.users
-    await db.query(
-      `INSERT INTO auth.users (id, email) 
-       VALUES ($1, $2) 
-       ON CONFLICT (id) DO UPDATE SET email = EXCLUDED.email;`,
-      [params.userId, params.email]
-    );
+    // 1. Ensure user exists in auth.users by email or id
+    let userId = params.userId;
+
+    if (userId) {
+      const existingById = await db.query(
+        `SELECT id FROM auth.users WHERE id = $1 LIMIT 1;`,
+        [userId]
+      );
+      if (existingById.rows.length === 0) {
+        const existingByEmail = await db.query(
+          `SELECT id FROM auth.users WHERE email = $1 LIMIT 1;`,
+          [params.email]
+        );
+        if (existingByEmail.rows.length > 0) {
+          userId = existingByEmail.rows[0].id;
+        } else {
+          const insertRes = await db.query(
+            `INSERT INTO auth.users (id, email, raw_user_meta_data, raw_app_meta_data)
+             VALUES ($1, $2, $3, $4)
+             ON CONFLICT (id) DO UPDATE SET email = EXCLUDED.email
+             RETURNING id;`,
+            [
+              userId,
+              params.email,
+              JSON.stringify({ role: 'caregiver' }),
+              JSON.stringify({ role: 'caregiver', org_id: params.orgId }),
+            ]
+          );
+          userId = insertRes.rows[0].id;
+        }
+      }
+    } else {
+      const existingByEmail = await db.query(
+        `SELECT id FROM auth.users WHERE email = $1 LIMIT 1;`,
+        [params.email]
+      );
+      if (existingByEmail.rows.length > 0) {
+        userId = existingByEmail.rows[0].id;
+      } else {
+        const insertRes = await db.query(
+          `INSERT INTO auth.users (email, raw_user_meta_data, raw_app_meta_data)
+           VALUES ($1, $2, $3)
+           RETURNING id;`,
+          [
+            params.email,
+            JSON.stringify({ role: 'caregiver' }),
+            JSON.stringify({ role: 'caregiver', org_id: params.orgId }),
+          ]
+        );
+        userId = insertRes.rows[0].id;
+      }
+    }
 
     // 2. Upsert caregiver profile
     const query = `
@@ -96,13 +143,14 @@ export class CaregiversRepository {
         org_id = EXCLUDED.org_id,
         state_code = EXCLUDED.state_code,
         personal_info = EXCLUDED.personal_info,
+        application_status = 'draft',
         application_step = GREATEST(public.caregiver_profiles.application_step, 1),
         updated_at = NOW()
-      RETURNING id, application_status, application_step, updated_at;
+      RETURNING id, user_id, application_status, application_step, updated_at;
     `;
 
     const values = [
-      params.userId,
+      userId,
       params.orgId,
       params.stateCode,
       JSON.stringify(params.sanitizedPersonalInfo),
@@ -113,6 +161,7 @@ export class CaregiversRepository {
 
     return {
       profileId: row.id,
+      userId: row.user_id,
       applicationStatus: row.application_status,
       applicationStep: row.application_step,
       updatedAt: row.updated_at,

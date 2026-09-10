@@ -19,12 +19,14 @@ import { useOrgTheme } from '../../../lib/OrgThemeContext.tsx';
 
 export interface Step1PersonalInfoProps {
   initialValues?: Partial<PersonalInfoStepInput>;
-  onSuccess: (profileId: string) => void;
+  onSuccess: (data: PersonalInfoStepInput) => void;
+  onAutosave?: (data: Partial<PersonalInfoStepInput>) => void;
 }
 
 export const Step1PersonalInfo: React.FC<Step1PersonalInfoProps> = ({
   initialValues,
   onSuccess,
+  onAutosave,
 }) => {
   const { org } = useOrgTheme();
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -57,6 +59,14 @@ export const Step1PersonalInfo: React.FC<Step1PersonalInfoProps> = ({
     },
   });
 
+  // Autosave to session on input change
+  React.useEffect(() => {
+    const subscription = watch((values) => {
+      onAutosave?.(values as Partial<PersonalInfoStepInput>);
+    });
+    return () => subscription.unsubscribe();
+  }, [watch, onAutosave]);
+
   const rawSsn = watch('ssn') || '';
 
   // Auto-format SSN as user types: 000-00-0000
@@ -72,51 +82,11 @@ export const Step1PersonalInfo: React.FC<Step1PersonalInfoProps> = ({
     setValue('ssn', formatted, { shouldValidate: true });
   };
 
-  const onSubmit = async (data: PersonalInfoStepInput) => {
+  const onSubmit = (data: PersonalInfoStepInput) => {
     try {
       setIsSubmitting(true);
       setServerError(null);
-
-      if (!org) {
-        throw new Error('Organization context not loaded');
-      }
-
-      const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:4000';
-      
-      let token = localStorage.getItem('crystal_jwt');
-      if (!token) {
-        token = 'dev-applicant-token';
-      }
-
-      const response = await fetch(`${apiUrl}/api/v1/caregivers/application`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({
-          org_id: org.id,
-          state_code: org.state_code,
-          personal_info: data,
-        }),
-      });
-
-      const json = await response.json();
-
-      if (!response.ok || !json.success) {
-        if (json.fieldErrors) {
-          const firstField = Object.keys(json.fieldErrors)[0];
-          throw new Error(json.fieldErrors[firstField][0]);
-        }
-        throw new Error(json.error || 'Failed to save application draft');
-      }
-
-      const profileId = json.data?.profileId;
-      if (profileId) {
-        localStorage.setItem('caregiver_profile_id', profileId);
-      }
-
-      onSuccess(profileId);
+      onSuccess(data);
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : 'An unexpected error occurred.';
       setServerError(message);
@@ -129,7 +99,7 @@ export const Step1PersonalInfo: React.FC<Step1PersonalInfoProps> = ({
     <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
       <div className="border-b border-slate-800 pb-4">
         <h2 className="text-xl font-bold text-white flex items-center space-x-2">
-          <User className="w-5 h-5 text-blue-400" />
+          <User className="w-5 h-5 text-teal-400" />
           <span>Step 1: Personal Information</span>
         </h2>
         <p className="text-slate-400 text-xs mt-1">
@@ -153,7 +123,7 @@ export const Step1PersonalInfo: React.FC<Step1PersonalInfoProps> = ({
             placeholder="Jane"
             disabled={isSubmitting}
             {...register('first_name')}
-            className="w-full px-3.5 py-2.5 rounded-lg bg-slate-900 border border-slate-800 text-white placeholder-slate-600 focus:outline-none focus:border-blue-500 text-sm disabled:opacity-50"
+            className="w-full px-3.5 py-2.5 rounded-lg bg-slate-900 border border-slate-800 text-white placeholder-slate-400 focus:outline-none focus:border-teal-500 focus-visible:ring-2 focus-visible:ring-teal-400 text-sm disabled:opacity-50"
           />
           {errors.first_name && (
             <p className="text-xs text-red-400 mt-1">{errors.first_name.message}</p>
@@ -167,7 +137,7 @@ export const Step1PersonalInfo: React.FC<Step1PersonalInfoProps> = ({
             placeholder="Marie (optional)"
             disabled={isSubmitting}
             {...register('middle_name')}
-            className="w-full px-3.5 py-2.5 rounded-lg bg-slate-900 border border-slate-800 text-white placeholder-slate-600 focus:outline-none focus:border-blue-500 text-sm disabled:opacity-50"
+            className="w-full px-3.5 py-2.5 rounded-lg bg-slate-900 border border-slate-800 text-white placeholder-slate-400 focus:outline-none focus:border-teal-500 focus-visible:ring-2 focus-visible:ring-teal-400 text-sm disabled:opacity-50"
           />
           {errors.middle_name && (
             <p className="text-xs text-red-400 mt-1">{errors.middle_name.message}</p>
@@ -181,7 +151,7 @@ export const Step1PersonalInfo: React.FC<Step1PersonalInfoProps> = ({
             placeholder="Doe"
             disabled={isSubmitting}
             {...register('last_name')}
-            className="w-full px-3.5 py-2.5 rounded-lg bg-slate-900 border border-slate-800 text-white placeholder-slate-600 focus:outline-none focus:border-blue-500 text-sm disabled:opacity-50"
+            className="w-full px-3.5 py-2.5 rounded-lg bg-slate-900 border border-slate-800 text-white placeholder-slate-400 focus:outline-none focus:border-teal-500 focus-visible:ring-2 focus-visible:ring-teal-400 text-sm disabled:opacity-50"
           />
           {errors.last_name && (
             <p className="text-xs text-red-400 mt-1">{errors.last_name.message}</p>
@@ -193,7 +163,7 @@ export const Step1PersonalInfo: React.FC<Step1PersonalInfoProps> = ({
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <div>
           <label className="block text-xs font-semibold text-slate-300 mb-1.5 flex items-center space-x-1">
-            <Mail className="w-3.5 h-3.5 text-blue-400" />
+            <Mail className="w-3.5 h-3.5 text-teal-400" />
             <span>Email Address *</span>
           </label>
           <input
@@ -201,7 +171,7 @@ export const Step1PersonalInfo: React.FC<Step1PersonalInfoProps> = ({
             placeholder="jane@example.com"
             disabled={isSubmitting}
             {...register('email')}
-            className="w-full px-3.5 py-2.5 rounded-lg bg-slate-900 border border-slate-800 text-white placeholder-slate-600 focus:outline-none focus:border-blue-500 text-sm disabled:opacity-50"
+            className="w-full px-3.5 py-2.5 rounded-lg bg-slate-900 border border-slate-800 text-white placeholder-slate-400 focus:outline-none focus:border-teal-500 focus-visible:ring-2 focus-visible:ring-teal-400 text-sm disabled:opacity-50"
           />
           {errors.email && (
             <p className="text-xs text-red-400 mt-1">{errors.email.message}</p>
@@ -210,7 +180,7 @@ export const Step1PersonalInfo: React.FC<Step1PersonalInfoProps> = ({
 
         <div>
           <label className="block text-xs font-semibold text-slate-300 mb-1.5 flex items-center space-x-1">
-            <Phone className="w-3.5 h-3.5 text-blue-400" />
+            <Phone className="w-3.5 h-3.5 text-teal-400" />
             <span>Phone Number *</span>
           </label>
           <input
@@ -218,7 +188,7 @@ export const Step1PersonalInfo: React.FC<Step1PersonalInfoProps> = ({
             placeholder="(317) 555-0123"
             disabled={isSubmitting}
             {...register('phone')}
-            className="w-full px-3.5 py-2.5 rounded-lg bg-slate-900 border border-slate-800 text-white placeholder-slate-600 focus:outline-none focus:border-blue-500 text-sm disabled:opacity-50"
+            className="w-full px-3.5 py-2.5 rounded-lg bg-slate-900 border border-slate-800 text-white placeholder-slate-400 focus:outline-none focus:border-teal-500 focus-visible:ring-2 focus-visible:ring-teal-400 text-sm disabled:opacity-50"
           />
           {errors.phone && (
             <p className="text-xs text-red-400 mt-1">{errors.phone.message}</p>
@@ -230,14 +200,14 @@ export const Step1PersonalInfo: React.FC<Step1PersonalInfoProps> = ({
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <div>
           <label className="block text-xs font-semibold text-slate-300 mb-1.5 flex items-center space-x-1">
-            <Calendar className="w-3.5 h-3.5 text-blue-400" />
+            <Calendar className="w-3.5 h-3.5 text-teal-400" />
             <span>Date of Birth (Must be 18+) *</span>
           </label>
           <input
             type="date"
             disabled={isSubmitting}
             {...register('dob')}
-            className="w-full px-3.5 py-2.5 rounded-lg bg-slate-900 border border-slate-800 text-white placeholder-slate-600 focus:outline-none focus:border-blue-500 text-sm disabled:opacity-50"
+            className="w-full px-3.5 py-2.5 rounded-lg bg-slate-900 border border-slate-800 text-white placeholder-slate-400 focus:outline-none focus:border-teal-500 focus-visible:ring-2 focus-visible:ring-teal-400 text-sm disabled:opacity-50"
           />
           {errors.dob && (
             <p className="text-xs text-red-400 mt-1">{errors.dob.message}</p>
@@ -247,13 +217,13 @@ export const Step1PersonalInfo: React.FC<Step1PersonalInfoProps> = ({
         <div>
           <div className="flex justify-between items-center mb-1.5">
             <label className="block text-xs font-semibold text-slate-300 flex items-center space-x-1">
-              <Lock className="w-3.5 h-3.5 text-blue-400" />
+              <Lock className="w-3.5 h-3.5 text-teal-400" />
               <span>Social Security Number (SSN) *</span>
             </label>
             <button
               type="button"
               onClick={() => setShowSsn(!showSsn)}
-              className="text-[11px] text-slate-400 hover:text-blue-400 flex items-center space-x-1 cursor-pointer"
+              className="text-[11px] text-slate-400 hover:text-teal-400 flex items-center space-x-1 cursor-pointer"
             >
               {showSsn ? <EyeOff className="w-3 h-3" /> : <Eye className="w-3 h-3" />}
               <span>{showSsn ? 'Mask' : 'Show'}</span>
@@ -266,7 +236,7 @@ export const Step1PersonalInfo: React.FC<Step1PersonalInfoProps> = ({
             onChange={handleSsnChange}
             disabled={isSubmitting}
             maxLength={11}
-            className="w-full px-3.5 py-2.5 rounded-lg bg-slate-900 border border-slate-800 text-white placeholder-slate-600 focus:outline-none focus:border-blue-500 text-sm disabled:opacity-50 tracking-wider font-mono"
+            className="w-full px-3.5 py-2.5 rounded-lg bg-slate-900 border border-slate-800 text-white placeholder-slate-400 focus:outline-none focus:border-teal-500 focus-visible:ring-2 focus-visible:ring-teal-400 text-sm disabled:opacity-50 tracking-wider font-mono"
           />
           <span className="text-[10px] text-slate-500 block mt-1">
             Encrypted in transit. Only the last 4 digits are retained for compliance verification.
@@ -280,7 +250,7 @@ export const Step1PersonalInfo: React.FC<Step1PersonalInfoProps> = ({
       {/* Residential Address */}
       <div className="space-y-4 pt-2 border-t border-slate-800">
         <h3 className="text-sm font-semibold text-slate-200 flex items-center space-x-1.5">
-          <MapPin className="w-4 h-4 text-blue-400" />
+          <MapPin className="w-4 h-4 text-teal-400" />
           <span>Home Address</span>
         </h3>
 
@@ -292,7 +262,7 @@ export const Step1PersonalInfo: React.FC<Step1PersonalInfoProps> = ({
               placeholder="123 Main Street"
               disabled={isSubmitting}
               {...register('address.street')}
-              className="w-full px-3.5 py-2.5 rounded-lg bg-slate-900 border border-slate-800 text-white placeholder-slate-600 focus:outline-none focus:border-blue-500 text-sm disabled:opacity-50"
+              className="w-full px-3.5 py-2.5 rounded-lg bg-slate-900 border border-slate-800 text-white placeholder-slate-400 focus:outline-none focus:border-teal-500 focus-visible:ring-2 focus-visible:ring-teal-400 text-sm disabled:opacity-50"
             />
             {errors.address?.street && (
               <p className="text-xs text-red-400 mt-1">{errors.address.street.message}</p>
@@ -306,7 +276,7 @@ export const Step1PersonalInfo: React.FC<Step1PersonalInfoProps> = ({
               placeholder="Apt 4B (optional)"
               disabled={isSubmitting}
               {...register('address.unit')}
-              className="w-full px-3.5 py-2.5 rounded-lg bg-slate-900 border border-slate-800 text-white placeholder-slate-600 focus:outline-none focus:border-blue-500 text-sm disabled:opacity-50"
+              className="w-full px-3.5 py-2.5 rounded-lg bg-slate-900 border border-slate-800 text-white placeholder-slate-400 focus:outline-none focus:border-teal-500 focus-visible:ring-2 focus-visible:ring-teal-400 text-sm disabled:opacity-50"
             />
           </div>
         </div>
@@ -319,7 +289,7 @@ export const Step1PersonalInfo: React.FC<Step1PersonalInfoProps> = ({
               placeholder="Indianapolis"
               disabled={isSubmitting}
               {...register('address.city')}
-              className="w-full px-3.5 py-2.5 rounded-lg bg-slate-900 border border-slate-800 text-white placeholder-slate-600 focus:outline-none focus:border-blue-500 text-sm disabled:opacity-50"
+              className="w-full px-3.5 py-2.5 rounded-lg bg-slate-900 border border-slate-800 text-white placeholder-slate-400 focus:outline-none focus:border-teal-500 focus-visible:ring-2 focus-visible:ring-teal-400 text-sm disabled:opacity-50"
             />
             {errors.address?.city && (
               <p className="text-xs text-red-400 mt-1">{errors.address.city.message}</p>
@@ -334,7 +304,7 @@ export const Step1PersonalInfo: React.FC<Step1PersonalInfoProps> = ({
               maxLength={2}
               disabled={isSubmitting}
               {...register('address.state')}
-              className="w-full px-3.5 py-2.5 rounded-lg bg-slate-900 border border-slate-800 text-white placeholder-slate-600 focus:outline-none focus:border-blue-500 text-sm uppercase disabled:opacity-50"
+              className="w-full px-3.5 py-2.5 rounded-lg bg-slate-900 border border-slate-800 text-white placeholder-slate-400 focus:outline-none focus:border-teal-500 focus-visible:ring-2 focus-visible:ring-teal-400 text-sm uppercase disabled:opacity-50"
             />
             {errors.address?.state && (
               <p className="text-xs text-red-400 mt-1">{errors.address.state.message}</p>
@@ -345,10 +315,10 @@ export const Step1PersonalInfo: React.FC<Step1PersonalInfoProps> = ({
             <label className="block text-xs font-medium text-slate-300 mb-1">ZIP Code *</label>
             <input
               type="text"
-              placeholder="46225"
+              placeholder="46204"
               disabled={isSubmitting}
               {...register('address.zip')}
-              className="w-full px-3.5 py-2.5 rounded-lg bg-slate-900 border border-slate-800 text-white placeholder-slate-600 focus:outline-none focus:border-blue-500 text-sm disabled:opacity-50"
+              className="w-full px-3.5 py-2.5 rounded-lg bg-slate-900 border border-slate-800 text-white placeholder-slate-400 focus:outline-none focus:border-teal-500 focus-visible:ring-2 focus-visible:ring-teal-400 text-sm disabled:opacity-50"
             />
             {errors.address?.zip && (
               <p className="text-xs text-red-400 mt-1">{errors.address.zip.message}</p>
@@ -362,7 +332,7 @@ export const Step1PersonalInfo: React.FC<Step1PersonalInfoProps> = ({
         <button
           type="submit"
           disabled={isSubmitting}
-          style={{ backgroundColor: 'var(--primary, #1E3A8A)' }}
+          style={{ backgroundColor: 'var(--primary, #0F766E)' }}
           className="inline-flex items-center space-x-2 px-6 py-3 rounded-lg text-white font-semibold text-sm hover:brightness-110 transition-all shadow-md disabled:opacity-50 cursor-pointer"
         >
           {isSubmitting ? (
