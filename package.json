@@ -9,6 +9,6 @@
   ],
   "scripts": {
     "db:setup": "npm --prefix apps/api run db:setup",
-    "build": "echo \"Placeholder root build script\""
+    "build": "npm run build --workspaces --if-present"
   }
 }
