@@ -1,6 +1,7 @@
 import { inquiriesRepository, type InsertInquiryParams } from './inquiries.repository.js';
 import { getEmailProvider } from '../../integrations/email/index.js';
 import type { CreatePublicInquiryInput } from '@crystal/validation';
+import { env } from '../../config/env.js';
 
 export interface SubmitInquiryResult {
   isHoneypot: boolean;
@@ -29,7 +30,7 @@ export class InquiriesService {
 
     // 3. Fire-and-forget non-blocking email notification
     getEmailProvider().sendEmail({
-      to: process.env.SES_FROM_EMAIL || 'notifications@crystalhomecare.com',
+      to: env.SES_FROM_EMAIL,
       subject: `New Lead: ${payload.full_name} (${payload.inquiry_type})`,
       html: `<p>New inquiry from ${payload.full_name} (${payload.email}, ${payload.phone}):</p><p>${payload.message}</p>`,
       text: `New inquiry from ${payload.full_name} (${payload.email}, ${payload.phone}):\n\n${payload.message}`,

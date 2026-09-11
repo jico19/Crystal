@@ -1,6 +1,7 @@
 import type { SmsProvider } from './sms.interface.js';
 import { LocalSmsProvider } from './local-sms.provider.js';
 import { TwilioSmsProvider } from './twilio-sms.provider.js';
+import { env } from '../../config/env.js';
 
 export * from './sms.interface.js';
 export * from './local-sms.provider.js';
@@ -13,9 +14,9 @@ export function getSmsProvider(): SmsProvider {
     return activeSmsProvider;
   }
 
-  const driver = process.env.SMS_DRIVER || 'local';
+  const driver = env.SMS_DRIVER;
 
-  if (driver === 'twilio' && process.env.TWILIO_ACCOUNT_SID && process.env.TWILIO_AUTH_TOKEN) {
+  if (driver === 'twilio' && env.TWILIO_ACCOUNT_SID && env.TWILIO_AUTH_TOKEN) {
     console.log('📱 [SMS Provider] Initialized driver: "twilio"');
     activeSmsProvider = new TwilioSmsProvider();
   } else {

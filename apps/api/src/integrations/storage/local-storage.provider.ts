@@ -2,6 +2,7 @@ import fs from 'fs';
 import path from 'path';
 import crypto from 'crypto';
 import type { StorageProvider, PresignedUploadResult, PresignedDownloadResult } from './storage.interface.js';
+import { env } from '../../config/env.js';
 
 export class LocalStorageProvider implements StorageProvider {
   name = 'local';
@@ -13,7 +14,7 @@ export class LocalStorageProvider implements StorageProvider {
     if (!fs.existsSync(this.uploadsDir)) {
       fs.mkdirSync(this.uploadsDir, { recursive: true });
     }
-    this.secret = process.env.JWT_SECRET || 'local-storage-secret-key-123';
+    this.secret = env.JWT_SECRET;
   }
 
   private generateToken(storagePath: string): string {
@@ -40,7 +41,7 @@ export class LocalStorageProvider implements StorageProvider {
     maxSizeBytes?: number;
   }): Promise<PresignedUploadResult> {
     const token = this.generateToken(params.storagePath);
-    const port = process.env.PORT || 4000;
+    const port = env.PORT;
     const encodedPath = encodeURIComponent(params.storagePath);
     const uploadUrl = `http://localhost:${port}/api/v1/documents/local-storage/upload?path=${encodedPath}&token=${token}`;
 
@@ -56,7 +57,7 @@ export class LocalStorageProvider implements StorageProvider {
     storagePath: string;
   }): Promise<PresignedDownloadResult> {
     const token = this.generateToken(params.storagePath);
-    const port = process.env.PORT || 4000;
+    const port = env.PORT;
     const encodedPath = encodeURIComponent(params.storagePath);
     const downloadUrl = `http://localhost:${port}/api/v1/documents/local-storage/download?path=${encodedPath}&token=${token}`;
 

@@ -9,6 +9,7 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@crystal/api-client": "*",
     "@crystal/types": "*",
     "@crystal/ui": "*",
     "@crystal/validation": "*",

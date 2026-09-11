@@ -1,4 +1,4 @@
-import { db } from '../../db/index.js';
+import { db, SqlQueryBuilder } from '../../db/index.js';
 import type { ClientProfile, ClientDocument, ClientStatus } from '@crystal/types';
 import type {
   CreateClientDTO,
@@ -49,31 +49,29 @@ export class ClientsRepository {
   }
 
   async findMany(options: ClientFilterOptions): Promise<{ clients: ClientWithSummary[]; total: number }> {
-    const conditions: string[] = ['c.org_id = $1'];
-    const values: any[] = [options.org_id];
-    let paramIdx = 2;
+    const qb = new SqlQueryBuilder();
+    qb.addWhere('c.org_id =', options.org_id);
 
     if (options.status) {
-      conditions.push(`c.status = $${paramIdx++}`);
-      values.push(options.status);
+      qb.addWhere('c.status =', options.status);
     }
 
     if (options.search) {
-      conditions.push(`(c.first_name ILIKE $${paramIdx} OR c.last_name ILIKE $${paramIdx} OR c.medicaid_id ILIKE $${paramIdx})`);
-      values.push(`%${options.search}%`);
-      paramIdx++;
+      const searchToken = qb.addParam(`%${options.search}%`);
+      qb.addRawWhere(`(c.first_name ILIKE ${searchToken} OR c.last_name ILIKE ${searchToken} OR c.medicaid_id ILIKE ${searchToken})`);
     }
 
-    const whereClause = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '';
-
-    const countRes = await db.query(
-      `SELECT COUNT(*)::int as count FROM public.clients c ${whereClause};`,
-      values
-    );
-    const total = countRes.rows[0]?.count || 0;
+    const whereClause = qb.getWhereClause();
+    const countValues = qb.getValues();
 
     const limit = options.limit || 50;
     const offset = options.offset || 0;
+    const { limitParam, offsetParam } = qb.paginate(limit, offset);
+
+    const countPromise = db.query(
+      `SELECT COUNT(*)::int as count FROM public.clients c ${whereClause};`,
+      countValues
+    );
 
     const dataQuery = `
       SELECT
@@ -91,12 +89,15 @@ export class ClientsRepository {
       FROM public.clients c
       ${whereClause}
       ORDER BY c.created_at DESC
-      LIMIT $${paramIdx++} OFFSET $${paramIdx++};
+      LIMIT ${limitParam} OFFSET ${offsetParam};
     `;
 
-    values.push(limit, offset);
+    const [countRes, dataRes] = await Promise.all([
+      countPromise,
+      db.query(dataQuery, qb.getValues()),
+    ]);
 
-    const dataRes = await db.query(dataQuery, values);
+    const total = countRes.rows[0]?.count || 0;
     return { clients: dataRes.rows, total };
   }
 

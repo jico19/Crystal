@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import type { QuizQuestion } from '@crystal/types';
-import { Modal, Button } from '@crystal/ui';
+import { Modal } from './Modal.js';
+import { Button } from './Button.js';
 import { Award, AlertCircle, CheckCircle2, RotateCcw } from 'lucide-react';
 
 export interface QuizKnowledgeCheckModalProps {

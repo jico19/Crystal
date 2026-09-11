@@ -1,5 +1,6 @@
 import type { Request, Response, NextFunction } from 'express';
 import { organizationsService } from './organizations.service.js';
+import { AppError } from '../../lib/errors.js';
 
 export async function getOrganizationByDomainController(
   req: Request,
@@ -10,22 +11,14 @@ export async function getOrganizationByDomainController(
     const domain = req.query.domain as string;
 
     if (!domain || domain.trim() === '') {
-      res.status(400).json({
-        success: false,
-        error: 'domain query parameter is required',
-      });
-      return;
+      throw AppError.badRequest('domain query parameter is required');
     }
 
     const cleanDomain = domain.trim().toLowerCase();
     const org = await organizationsService.getOrganizationByDomain(cleanDomain);
 
     if (!org) {
-      res.status(404).json({
-        success: false,
-        error: 'Organization not found for domain',
-      });
-      return;
+      throw AppError.notFound('Organization not found for domain');
     }
 
     res.status(200).json({

@@ -1,15 +1,13 @@
 import pg from 'pg';
-import dotenv from 'dotenv';
 import path from 'path';
 import fs from 'fs';
 import { fileURLToPath } from 'url';
+import { env } from '../config/env.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
-dotenv.config({ path: path.resolve(__dirname, '../../.env') });
 
-const connectionString =
-  process.env.DATABASE_URL || 'postgres://postgres:postgres@localhost:5432/crystal_db';
+const connectionString = env.DATABASE_URL;
 
 // Extract connection parameters for connecting to default 'postgres' db
 const urlObj = new URL(connectionString);

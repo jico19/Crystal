@@ -41,7 +41,7 @@ export class DocumentsService {
     const document = await documentsRepository.insertDocument({
       caregiverId: input.caregiver_id,
       orgId,
-      category: input.category as any,
+      category: input.category,
       storagePath,
       fileName: input.file_name,
       fileSizeBytes: input.file_size_bytes,
@@ -241,14 +241,14 @@ export class DocumentsService {
           await documentsRepository.markExpired(doc.id);
           expiredCount++;
 
-          const caregiverEmail = (doc as any).personal_info?.email;
+          const caregiverEmail = doc.personal_info?.email;
           if (caregiverEmail && doc.org_id) {
             await notificationsService.queueNotification({
               org_id: doc.org_id,
               channel: 'email',
               destination: caregiverEmail,
               subject: 'Credential Expiration Alert',
-              recipient_user_id: (doc as any).user_id,
+              recipient_user_id: doc.user_id,
               payload: {
                 category: doc.category,
                 expiration_date: doc.expiration_date,

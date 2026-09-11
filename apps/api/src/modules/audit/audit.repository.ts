@@ -1,4 +1,4 @@
-import { db } from '../../db/index.js';
+import { db, SqlQueryBuilder } from '../../db/index.js';
 import type { LogAuditEventParams, AuditLogQueryFilters } from './audit.types.js';
 import type { SecurityAuditLog } from '@crystal/types';
 
@@ -32,63 +32,58 @@ export class AuditRepository {
    * Query paginated audit logs with optional filters
    */
   async findAuditLogs(filters: AuditLogQueryFilters): Promise<{ logs: SecurityAuditLog[]; total: number }> {
-    const conditions: string[] = [];
-    const values: unknown[] = [];
-    let paramIdx = 1;
+    const qb = new SqlQueryBuilder();
 
     if (filters.eventType) {
-      conditions.push(`event_type = $${paramIdx++}`);
-      values.push(filters.eventType);
+      qb.addWhere('event_type =', filters.eventType);
     }
 
     if (filters.orgId) {
-      conditions.push(`org_id = $${paramIdx++}`);
-      values.push(filters.orgId);
+      qb.addWhere('org_id =', filters.orgId);
     }
 
     if (filters.userId) {
-      conditions.push(`user_id = $${paramIdx++}`);
-      values.push(filters.userId);
+      qb.addWhere('user_id =', filters.userId);
     }
 
     if (filters.fromDate) {
-      conditions.push(`created_at >= $${paramIdx++}`);
-      values.push(filters.fromDate);
+      qb.addWhere('created_at >=', filters.fromDate);
     }
 
     if (filters.toDate) {
-      conditions.push(`created_at <= $${paramIdx++}`);
-      values.push(filters.toDate);
+      qb.addWhere('created_at <=', filters.toDate);
     }
 
-    const whereClause = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '';
-
-    // Count total matching records
-    const countRes = await db.query(
-      `SELECT COUNT(*)::int as count FROM public.security_audit_logs ${whereClause};`,
-      values
-    );
-    const total = countRes.rows[0]?.count || 0;
+    const whereClause = qb.getWhereClause();
+    const countValues = qb.getValues();
 
     // Fetch paginated rows
     const page = filters.page && filters.page > 0 ? filters.page : 1;
     const pageSize = filters.pageSize && filters.pageSize > 0 ? Math.min(filters.pageSize, 100) : 25;
     const offset = (page - 1) * pageSize;
+    const { limitParam, offsetParam } = qb.paginate(pageSize, offset);
+
+    const countPromise = db.query(
+      `SELECT COUNT(*)::int as count FROM public.security_audit_logs ${whereClause};`,
+      countValues
+    );
 
     const dataQuery = `
       SELECT id, user_id, org_id, event_type, resource_type, resource_id, ip_address, user_agent, metadata, created_at
       FROM public.security_audit_logs
       ${whereClause}
       ORDER BY created_at DESC
-      LIMIT $${paramIdx++} OFFSET $${paramIdx++};
+      LIMIT ${limitParam} OFFSET ${offsetParam};
     `;
-    const dataValues = [...values, pageSize, offset];
 
-    const dataRes = await db.query(dataQuery, dataValues);
+    const [countRes, dataRes] = await Promise.all([
+      countPromise,
+      db.query(dataQuery, qb.getValues()),
+    ]);
 
     return {
       logs: dataRes.rows,
-      total,
+      total: countRes.rows[0]?.count || 0,
     };
   }
 

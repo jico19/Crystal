@@ -11,15 +11,18 @@ import {
   type LegalDisclosuresStepInput,
 } from '@crystal/validation';
 import { getEmailProvider } from '../../integrations/email/index.js';
+import { env } from '../../config/env.js';
 
-export class ServiceError extends Error {
-  status: number;
-  fieldErrors?: Record<string, string[]>;
+import { AppError } from '../../lib/errors.js';
+
+export class ServiceError extends AppError {
   constructor(message: string, status: number, fieldErrors?: Record<string, string[]>) {
-    super(message);
-    this.status = status;
-    this.fieldErrors = fieldErrors;
+    super(message, status, fieldErrors);
     this.name = 'ServiceError';
+  }
+
+  get status(): number {
+    return this.statusCode;
   }
 }
 
@@ -51,7 +54,7 @@ export class CaregiversService {
       sanitizedPersonalInfo,
     });
 
-    const jwtSecret = process.env.JWT_SECRET || 'super-secret-jwt-key-change-in-production-12345';
+    const jwtSecret = env.JWT_SECRET;
     const token = jwt.sign(
       {
         sub: draftResult.userId,

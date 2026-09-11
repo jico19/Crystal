@@ -9,6 +9,7 @@
   ],
   "scripts": {
     "db:setup": "npm --prefix apps/api run db:setup",
-    "build": "npm run build --workspaces --if-present"
+    "build": "npm run build --workspaces --if-present",
+    "test": "npm --workspace=@crystal/api run test"
   }
 }

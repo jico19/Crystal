@@ -4,7 +4,7 @@ import { UrgentActionQueue } from './UrgentActionQueue.js';
 import { AuditPacketExporter } from './AuditPacketExporter.js';
 import { NotificationBell } from '../notifications/NotificationBell.js';
 import { NotificationDropdown } from '../notifications/NotificationDropdown.js';
-import { SignatureContainerModal } from '../esign/SignatureContainerModal.js';
+import { SignatureContainerModal } from '@crystal/ui';
 import type { AggregatedKpis, UrgentActionItem, InAppNotificationItem } from '@crystal/types';
 import {
   LayoutDashboard,

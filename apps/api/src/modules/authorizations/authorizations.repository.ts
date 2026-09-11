@@ -1,4 +1,4 @@
-import { db } from '../../db/index.js';
+import { db, SqlQueryBuilder } from '../../db/index.js';
 import type { ClientAuthorization, AuthorizationStatus } from '@crystal/types';
 import type {
   CreateAuthorizationDTO,
@@ -69,30 +69,28 @@ export class AuthorizationsRepository {
   async findMany(
     options: AuthorizationFilterOptions
   ): Promise<{ authorizations: AuthorizationWithClient[]; total: number }> {
-    const conditions: string[] = ['ca.org_id = $1'];
-    const values: any[] = [options.org_id];
-    let paramIdx = 2;
+    const qb = new SqlQueryBuilder();
+    qb.addWhere('ca.org_id =', options.org_id);
 
     if (options.client_id) {
-      conditions.push(`ca.client_id = $${paramIdx++}`);
-      values.push(options.client_id);
+      qb.addWhere('ca.client_id =', options.client_id);
     }
 
     if (options.status) {
-      conditions.push(`ca.status = $${paramIdx++}`);
-      values.push(options.status);
+      qb.addWhere('ca.status =', options.status);
     }
 
-    const whereClause = `WHERE ${conditions.join(' AND ')}`;
-
-    const countRes = await db.query(
-      `SELECT COUNT(*)::int as count FROM public.client_authorizations ca ${whereClause};`,
-      values
-    );
-    const total = countRes.rows[0]?.count || 0;
+    const whereClause = qb.getWhereClause();
+    const countValues = qb.getValues();
 
     const limit = options.limit || 50;
     const offset = options.offset || 0;
+    const { limitParam, offsetParam } = qb.paginate(limit, offset);
+
+    const countPromise = db.query(
+      `SELECT COUNT(*)::int as count FROM public.client_authorizations ca ${whereClause};`,
+      countValues
+    );
 
     const query = `
       SELECT
@@ -104,11 +102,15 @@ export class AuthorizationsRepository {
       JOIN public.clients c ON c.id = ca.client_id
       ${whereClause}
       ORDER BY ca.end_date ASC
-      LIMIT $${paramIdx++} OFFSET $${paramIdx++};
+      LIMIT ${limitParam} OFFSET ${offsetParam};
     `;
-    values.push(limit, offset);
 
-    const dataRes = await db.query(query, values);
+    const [countRes, dataRes] = await Promise.all([
+      countPromise,
+      db.query(query, qb.getValues()),
+    ]);
+
+    const total = countRes.rows[0]?.count || 0;
     return { authorizations: dataRes.rows, total };
   }
 

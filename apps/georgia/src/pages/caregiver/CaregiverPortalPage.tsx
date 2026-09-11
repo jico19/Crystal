@@ -4,12 +4,10 @@ import { ComplianceScoreBanner } from '../../components/documents/ComplianceScor
 import { DocumentChecklistTable, DocumentRowItem } from '../../components/documents/DocumentChecklistTable.js';
 import { DocumentUploadModal } from '../../components/documents/DocumentUploadModal.js';
 import { TrainingPortalCatalog, EnrichedTrainingModule } from '../../components/training/TrainingPortalCatalog.js';
-import { VideoPlayerWithProgress } from '../../components/training/VideoPlayerWithProgress.js';
-import { QuizKnowledgeCheckModal } from '../../components/training/QuizKnowledgeCheckModal.js';
 import { CertificateModal } from '../../components/training/CertificateModal.js';
 import type { ComplianceScore, DocumentCategory, CaregiverDocument, CertificateDetails } from '@crystal/types';
 import { FileText, GraduationCap, Loader2, AlertCircle, RefreshCw, Download, Megaphone, ShieldCheck } from 'lucide-react';
-import { DashboardPageHeader, DashboardTabs } from '@crystal/ui';
+import { DashboardPageHeader, DashboardTabs, VideoPlayerWithProgress, QuizKnowledgeCheckModal } from '@crystal/ui';
 
 const STANDARD_DOCUMENT_CHECKLIST: Array<{
   category: DocumentCategory;

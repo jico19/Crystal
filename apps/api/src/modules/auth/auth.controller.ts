@@ -1,11 +1,17 @@
-import type { Request, Response } from 'express';
+import type { Request, Response, NextFunction } from 'express';
 import { authService } from './auth.service.js';
+import { env } from '../../config/env.js';
+import { AppError } from '../../lib/errors.js';
 
 export class AuthController {
-  async login(req: Request, res: Response): Promise<void> {
+  async login(req: Request, res: Response, next: NextFunction): Promise<void> {
     const { email, password } = req.body;
     if (!email) {
       res.status(400).json({ success: false, error: 'Email is required' });
+      return;
+    }
+    if (!password) {
+      res.status(400).json({ success: false, error: 'Password is required' });
       return;
     }
 
@@ -17,13 +23,17 @@ export class AuthController {
         success: true,
         data: result,
       });
-    } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : String(err);
-      res.status(401).json({ success: false, error: msg });
+    } catch (err) {
+      next(err);
     }
   }
 
-  async getTestAccounts(_req: Request, res: Response): Promise<void> {
+  async getTestAccounts(_req: Request, res: Response, next: NextFunction): Promise<void> {
+    if (env.NODE_ENV === 'production') {
+      next(AppError.notFound('Endpoint not available in production'));
+      return;
+    }
+
     try {
       const accounts = await authService.listTestAccounts();
       res.json({
@@ -33,11 +43,11 @@ export class AuthController {
           defaultPassword: 'Password123!',
         },
       });
-    } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : String(err);
-      res.status(500).json({ success: false, error: msg });
+    } catch (err) {
+      next(err);
     }
   }
 }
 
 export const authController = new AuthController();
+

@@ -1,6 +1,7 @@
 import type { EmailProvider } from './email.interface.js';
 import { LocalEmailProvider } from './local-email.provider.js';
 import { SesEmailProvider } from './ses-email.provider.js';
+import { env } from '../../config/env.js';
 
 export * from './email.interface.js';
 export * from './local-email.provider.js';
@@ -13,9 +14,9 @@ export function getEmailProvider(): EmailProvider {
     return activeEmailProvider;
   }
 
-  const driver = process.env.EMAIL_DRIVER || 'local';
+  const driver = env.EMAIL_DRIVER;
 
-  if (driver === 'ses' && process.env.AWS_ACCESS_KEY_ID && process.env.AWS_SECRET_ACCESS_KEY) {
+  if (driver === 'ses' && env.AWS_ACCESS_KEY_ID && env.AWS_SECRET_ACCESS_KEY) {
     console.log('📧 [Email Provider] Initialized driver: "ses"');
     activeEmailProvider = new SesEmailProvider();
   } else {

@@ -1,6 +1,7 @@
 import type { Request, Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
 import type { UserRole, AuthenticatedUser } from '@crystal/types';
+import { env } from '../config/env.js';
 
 export type { AuthenticatedUser };
 
@@ -9,6 +10,7 @@ declare global {
   namespace Express {
     interface Request {
       user?: AuthenticatedUser;
+      orgId?: string;
     }
   }
 }
@@ -29,7 +31,7 @@ export function verifyJWT(req: Request, res: Response, next: NextFunction): void
   }
 
   const token = authHeader.split(' ')[1];
-  const jwtSecret = process.env.JWT_SECRET || 'super-secret-jwt-key-change-in-production-12345';
+  const jwtSecret = env.JWT_SECRET;
 
   try {
     const decoded = jwt.verify(token, jwtSecret) as jwt.JwtPayload;
@@ -49,6 +51,7 @@ export function verifyJWT(req: Request, res: Response, next: NextFunction): void
       role: (decoded.app_metadata?.role || decoded.role) as UserRole | undefined,
       org_id: (decoded.app_metadata?.org_id || decoded.org_id) as string | undefined,
     };
+    req.orgId = req.user.org_id;
 
     next();
   } catch (_err) {
@@ -108,6 +111,7 @@ export function requireOrg(req: Request, res: Response, next: NextFunction): voi
 
   // Super admin can operate without an explicit org_id or override via query
   if (req.user.role === 'super_admin') {
+    req.orgId = (req.query.org_id as string) || (req.headers['x-org-id'] as string) || req.user.org_id;
     next();
     return;
   }
@@ -120,6 +124,7 @@ export function requireOrg(req: Request, res: Response, next: NextFunction): voi
     return;
   }
 
+  req.orgId = req.user.org_id;
   next();
 };
 
@@ -141,7 +146,7 @@ export function optionalJWT(req: Request, _res: Response, next: NextFunction): v
     return;
   }
 
-  const jwtSecret = process.env.JWT_SECRET || 'super-secret-jwt-key-change-in-production-12345';
+  const jwtSecret = env.JWT_SECRET;
 
   try {
     const decoded = jwt.verify(token, jwtSecret) as jwt.JwtPayload;
@@ -153,6 +158,7 @@ export function optionalJWT(req: Request, _res: Response, next: NextFunction): v
         role: (decoded.app_metadata?.role || decoded.role) as UserRole | undefined,
         org_id: (decoded.app_metadata?.org_id || decoded.org_id) as string | undefined,
       };
+      req.orgId = req.user.org_id;
     }
   } catch {
     // Ignore invalid/expired token for optional endpoints

@@ -1,6 +1,6 @@
 import React, { useRef, useState, useEffect } from 'react';
 import type { TrainingModule } from '@crystal/types';
-import { Button } from '@crystal/ui';
+import { Button } from './Button.js';
 import { Play, Pause, RotateCcw, CheckCircle, HelpCircle } from 'lucide-react';
 
 export interface VideoPlayerWithProgressProps {

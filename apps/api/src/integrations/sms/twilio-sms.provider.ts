@@ -1,6 +1,7 @@
 import crypto from 'crypto';
 import type { SmsProvider, SendSmsParams, SendSmsResult } from './sms.interface.js';
 import { stripPhiFromSms } from './sms.interface.js';
+import { env } from '../../config/env.js';
 
 export class TwilioSmsProvider implements SmsProvider {
   readonly name = 'twilio' as const;
@@ -9,9 +10,9 @@ export class TwilioSmsProvider implements SmsProvider {
   private fromNumber: string;
 
   constructor() {
-    this.accountSid = process.env.TWILIO_ACCOUNT_SID;
-    this.authToken = process.env.TWILIO_AUTH_TOKEN;
-    this.fromNumber = process.env.TWILIO_PHONE_NUMBER || '+15550199000';
+    this.accountSid = env.TWILIO_ACCOUNT_SID;
+    this.authToken = env.TWILIO_AUTH_TOKEN;
+    this.fromNumber = env.TWILIO_PHONE_NUMBER;
 
     if (this.accountSid && this.authToken) {
       console.log(`📱 [TwilioSmsProvider] Initialized production Twilio SMS client (Account: ${this.accountSid.slice(0, 8)}...)`);

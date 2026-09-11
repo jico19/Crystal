@@ -1,6 +1,7 @@
 import { S3Client, PutObjectCommand, GetObjectCommand, DeleteObjectCommand } from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import type { StorageProvider, PresignedUploadResult, PresignedDownloadResult } from './storage.interface.js';
+import { env } from '../../config/env.js';
 
 export class S3StorageProvider implements StorageProvider {
   name = 's3';
@@ -9,15 +10,15 @@ export class S3StorageProvider implements StorageProvider {
   private s3Client: S3Client | null = null;
 
   constructor() {
-    this.bucket = process.env.AWS_S3_BUCKET || 'crystal-prod-documents-secure';
-    this.region = process.env.AWS_REGION || 'us-east-1';
+    this.bucket = env.AWS_S3_BUCKET;
+    this.region = env.AWS_REGION;
 
-    if (process.env.AWS_ACCESS_KEY_ID && process.env.AWS_SECRET_ACCESS_KEY) {
+    if (env.AWS_ACCESS_KEY_ID && env.AWS_SECRET_ACCESS_KEY) {
       this.s3Client = new S3Client({
         region: this.region,
         credentials: {
-          accessKeyId: process.env.AWS_ACCESS_KEY_ID,
-          secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY,
+          accessKeyId: env.AWS_ACCESS_KEY_ID,
+          secretAccessKey: env.AWS_SECRET_ACCESS_KEY,
         },
       });
       console.log(`📦 [S3StorageProvider] Initialized production AWS S3 client (Region: ${this.region}, Bucket: ${this.bucket})`);

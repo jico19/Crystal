@@ -1,6 +1,7 @@
 import crypto from 'crypto';
 import { SESClient, SendEmailCommand } from '@aws-sdk/client-ses';
 import type { EmailProvider, SendEmailParams, SendEmailResult } from './email.interface.js';
+import { env } from '../../config/env.js';
 
 export class SesEmailProvider implements EmailProvider {
   readonly name = 'ses' as const;
@@ -8,15 +9,15 @@ export class SesEmailProvider implements EmailProvider {
   private fromEmail: string;
 
   constructor() {
-    const region = process.env.AWS_REGION || 'us-east-1';
-    this.fromEmail = process.env.SES_FROM_EMAIL || 'notifications@crystalhomecare.com';
+    const region = env.AWS_REGION;
+    this.fromEmail = env.SES_FROM_EMAIL;
 
-    if (process.env.AWS_ACCESS_KEY_ID && process.env.AWS_SECRET_ACCESS_KEY) {
+    if (env.AWS_ACCESS_KEY_ID && env.AWS_SECRET_ACCESS_KEY) {
       this.sesClient = new SESClient({
         region,
         credentials: {
-          accessKeyId: process.env.AWS_ACCESS_KEY_ID,
-          secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY,
+          accessKeyId: env.AWS_ACCESS_KEY_ID,
+          secretAccessKey: env.AWS_SECRET_ACCESS_KEY,
         },
       });
       console.log(`📧 [SesEmailProvider] Initialized production Amazon SES client (Region: ${region})`);

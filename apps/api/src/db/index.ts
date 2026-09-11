@@ -1,17 +1,9 @@
 import pg from 'pg';
-import dotenv from 'dotenv';
-import path from 'path';
-import { fileURLToPath } from 'url';
-
-// Load .env file from apps/api directory or process CWD
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
-dotenv.config({ path: path.resolve(__dirname, '../../.env') });
+import { env } from '../config/env.js';
 
 const { Pool } = pg;
 
-const connectionString =
-  process.env.DATABASE_URL || 'postgres://postgres:postgres@localhost:5432/crystal_db';
+const connectionString = env.DATABASE_URL;
 
 export const db = new Pool({
   connectionString,
@@ -40,3 +32,6 @@ export async function testDbConnection(): Promise<boolean> {
     return false;
   }
 }
+
+export { SqlQueryBuilder } from './query-builder.js';
+

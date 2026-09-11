@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
 import { SignatureCanvasPad } from './SignatureCanvasPad.js';
 import { ESIGNConsentCheckbox } from './ESIGNConsentCheckbox.js';
-import { Button, Input } from '@crystal/ui';
+import { Button } from './Button.js';
+import { Input } from './Input.js';
 import { FileSignature, AlertCircle, CheckCircle2, Shield } from 'lucide-react';
 
 export interface SignatureContainerModalProps {

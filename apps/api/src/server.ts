@@ -19,9 +19,11 @@ import { startAuthorizationExpirationJob } from './modules/authorizations/author
 import { startCredentialExpirationJob } from './modules/documents/credential-expiration.job.js';
 import { startNotificationOutboxJob } from './modules/notifications/notifications-outbox.job.js';
 import { testDbConnection } from './db/index.js';
+import { env } from './config/env.js';
+import { errorHandler } from './lib/errors.js';
 
 const app = express();
-const PORT = process.env.PORT || 4000;
+const PORT = env.PORT;
 
 // Security: HTTP Response Headers
 app.use(
@@ -78,20 +80,19 @@ app.use('/api/v1/notifications', notificationsRouter);
 app.use('/api/v1/esign', esignRouter);
 app.use('/api/v1/admin', adminRouter);
 
-// Express v5 Centralized Error Handler (native async/await error propagation)
-app.use((err: Error, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
-  console.error('[Unhandled Express Error]', err);
-  res.status(500).json({
-    success: false,
-    error: 'Internal server error. Please try again later.',
-  });
-});
+// Express v5 Centralized Error Handler (standardized error envelope & Zod support)
+app.use(errorHandler);
 
-app.listen(PORT, async () => {
-  console.log(`⚡ Crystal Unified API running on http://localhost:${PORT}`);
-  await testDbConnection();
-  startAccountLockoutMonitor();
-  startAuthorizationExpirationJob();
-  startCredentialExpirationJob();
-  startNotificationOutboxJob();
-});
+export { app };
+
+if (process.env.NODE_ENV !== 'test') {
+  app.listen(PORT, async () => {
+    console.log(`⚡ Crystal Unified API running on http://localhost:${PORT}`);
+    await testDbConnection();
+    startAccountLockoutMonitor();
+    startAuthorizationExpirationJob();
+    startCredentialExpirationJob();
+    startNotificationOutboxJob();
+  });
+}
+

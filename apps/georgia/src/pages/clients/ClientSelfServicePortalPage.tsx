@@ -192,7 +192,7 @@ export const ClientSelfServicePortalPage: React.FC = () => {
       if (uploadUrl) {
         await api.put(uploadUrl, selectedFile, {
           headers: { 'Content-Type': selectedFile.type || 'application/pdf' },
-        }).catch((err) => console.warn('Direct PUT simulated:', err));
+        }).catch((err: unknown) => console.warn('Direct PUT simulated:', err));
       }
 
       if (document) {
