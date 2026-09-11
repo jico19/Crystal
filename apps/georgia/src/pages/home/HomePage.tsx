@@ -74,9 +74,6 @@ export const HomePage: React.FC = () => {
     <div className="space-y-20 pb-16">
       {/* 1. HERO SECTION */}
       <section className="relative overflow-hidden pt-8 pb-16 px-4 sm:px-6">
-        {/* Subtle background glow */}
-        <div className="absolute top-1/4 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[350px] bg-teal-500/10 blur-[120px] rounded-full pointer-events-none" />
-
         <div className="max-w-5xl mx-auto text-center space-y-6 relative z-10">
           <div className="inline-flex items-center space-x-2 px-3.5 py-1.5 rounded-full bg-teal-500/10 border border-teal-500/30 text-teal-300 text-xs font-semibold uppercase tracking-wider">
             <ShieldCheck className="w-4 h-4 text-teal-400" />
@@ -85,7 +82,7 @@ export const HomePage: React.FC = () => {
 
           <h1 className="text-4xl sm:text-6xl font-extrabold text-white tracking-tight leading-[1.15]">
             Compassionate, Dignified <br className="hidden sm:inline" />
-            <span className="text-transparent bg-clip-text bg-gradient-to-r from-teal-400 to-emerald-300">
+            <span className="text-teal-400">
               Home Care Across Georgia
             </span>
           </h1>
@@ -100,7 +97,7 @@ export const HomePage: React.FC = () => {
             <a
               href="#contact"
               style={{ backgroundColor: 'var(--primary, #0F766E)' }}
-              className="w-full sm:w-auto inline-flex items-center justify-center space-x-2 px-7 py-3.5 rounded-xl text-white font-bold text-sm hover:brightness-110 transition-all shadow-lg cursor-pointer"
+              className="w-full sm:w-auto inline-flex items-center justify-center space-x-2 px-7 py-3.5 rounded-xl text-white font-bold text-sm hover:brightness-110 transition-colors duration-150 shadow-lg cursor-pointer"
             >
               <PhoneCall className="w-4 h-4" />
               <span>Request Free Care Consultation</span>
@@ -108,7 +105,7 @@ export const HomePage: React.FC = () => {
 
             <Link
               to="/apply"
-              className="w-full sm:w-auto inline-flex items-center justify-center space-x-2 px-7 py-3.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-slate-200 font-semibold text-sm border border-slate-700 transition-all cursor-pointer"
+              className="w-full sm:w-auto inline-flex items-center justify-center space-x-2 px-7 py-3.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-slate-200 font-semibold text-sm border border-slate-700 transition-colors duration-150 cursor-pointer"
             >
               <Sparkles className="w-4 h-4 text-teal-400" />
               <span>Caregiver Careers: Apply Online</span>
@@ -144,7 +141,7 @@ export const HomePage: React.FC = () => {
             return (
               <div
                 key={idx}
-                className="p-6 rounded-2xl bg-slate-900/90 border border-slate-800 hover:border-teal-500/50 transition-all duration-300 space-y-4 group"
+                className="p-6 rounded-2xl bg-slate-900/90 border border-slate-800 hover:border-teal-500/50 transition-colors duration-200 space-y-4 group"
               >
                 <div className="flex items-center space-x-3.5">
                   <div className="p-3 rounded-xl bg-teal-500/10 text-teal-400 border border-teal-500/20 group-hover:scale-105 transition-transform">
@@ -235,7 +232,7 @@ export const HomePage: React.FC = () => {
           <Link
             to="/apply"
             style={{ backgroundColor: 'var(--primary, #0F766E)' }}
-            className="shrink-0 inline-flex items-center space-x-2 px-6 py-3.5 rounded-xl text-white font-bold text-sm hover:brightness-110 transition-all shadow-xl cursor-pointer"
+            className="shrink-0 inline-flex items-center space-x-2 px-6 py-3.5 rounded-xl text-white font-bold text-sm hover:brightness-110 transition-colors duration-150 shadow-xl cursor-pointer"
           >
             <span>Start Online Application</span>
             <ArrowRight className="w-4 h-4" />
