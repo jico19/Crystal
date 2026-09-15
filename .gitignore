@@ -1,27 +1,51 @@
-# Dependencies
+# Dependencies & Package Managers
 node_modules/
 .pnp
 .pnp.js
+.pnp.*
+.pnpm-store/
+.yarn/cache
+.yarn/unplugged
+.yarn/build-state.yml
+.yarn/install-state.gz
 
-# Next.js Build Outputs
+# Next.js & Frontend Build Outputs
 .next/
 out/
 build/
 dist/
 
-# Turborepo Cache
+# Turborepo & Bundler Caches
 .turbo/
+.cache/
+.parcel-cache/
+.vite/
 
-# Environment Variables & Secrets (Keep .env.example)
+# TypeScript Cache & Types
+*.tsbuildinfo
+next-env.d.ts
+
+# Linter & Formatter Caches
+.eslintcache
+.stylelintcache
+.prettiercache
+
+# Environment Variables & Secrets (Keep .env.example / templates)
 .env
-.env.local
-.env.development.local
-.env.test.local
-.env.production.local
+.env.*
+.env*.local
+!.env.example
+!.env.*.example
+!.env.template
 *.pem
 *.key
+*.cert
+*.crt
+*.pfx
+*.p12
+*.keystore
 
-# Logs
+# Logs & Process IDs
 logs
 *.log
 npm-debug.log*
@@ -29,14 +53,19 @@ yarn-debug.log*
 yarn-error.log*
 pnpm-debug.log*
 lerna-debug.log*
+*.pid
+*.seed
+*.pid.lock
 
-# Testing & Coverage
+# Testing & Coverage Reports
 coverage/
 .nyc_output/
-
-# TypeScript Cache
-*.tsbuildinfo
-next-env.d.ts
+test-results/
+playwright-report/
+blob-report/
+playwright/.cache/
+cypress/videos/
+cypress/screenshots/
 
 # Operating System Files
 .DS_Store
@@ -45,13 +74,25 @@ next-env.d.ts
 .Spotlight-V100
 .Trashes
 ehthumbs.db
+ehthumbs_vista.db
 Thumbs.db
+Thumbs.db:encryptable
+[Dd]esktop.ini
+$RECYCLE.BIN/
+*~
+*.bak
+*.swp
+*.swo
 
 # IDE & Editor Settings
 .idea/
 .vscode/*
 !.vscode/extensions.json
 !.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+*.sublime-workspace
+*.sublime-project
 *.suo
 *.ntvs*
 *.njsproj
@@ -62,8 +103,25 @@ Thumbs.db
 .supabase/
 supabase/.temp/
 
-# Local PGlite Database Files
+# Local PGlite & Database Files
 .pglite-data/
 *.pglite-data/
 apps/*/.pglite-data/
+*.sqlite
+*.sqlite3
+*.sqlite-journal
+*.sqlite-wal
+*.sqlite-shm
+*.db
+*.db-journal
+*.db-wal
+*.db-shm
+dump.rdb
 
+# Local Uploads & Temporary Storage
+tmp/
+temp/
+**/uploads/**
+!**/uploads/
+!**/uploads/**/
+!**/uploads/.gitkeep
