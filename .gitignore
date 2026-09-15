@@ -98,6 +98,13 @@ $RECYCLE.BIN/
 *.njsproj
 *.sln
 *.sw?
+.clinerules/
+.cursor/
+.opencode/
+.windsurf/
+
+# Binary & Document Files
+*.pdf
 
 # Supabase Local Temp Data
 .supabase/
