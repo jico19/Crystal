@@ -128,7 +128,5 @@ dump.rdb
 # Local Uploads & Temporary Storage
 tmp/
 temp/
-**/uploads/**
-!**/uploads/
-!**/uploads/**/
-!**/uploads/.gitkeep
+uploads/
+**/uploads/
